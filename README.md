@@ -8,6 +8,14 @@ The script will also auto-update yt-dlp for you before the media download begins
 ### Why?
 Because those "download YouTube videos" websites don't stay up forever (most have liimted options anyway), are ad-filled, and all have different UIs that you have to adapt to just to forget them when they inevitably disappear and get replaced.
 
+# Screenshots
+![OnPaste 20250223-133357](https://github.com/user-attachments/assets/0543683b-9e32-4740-9902-d4cb257b4a22)
+![OnPaste 20250223-133449](https://github.com/user-attachments/assets/06f37414-5bd5-4bfa-8c04-b19bad5d67a9)
+![OnPaste 20250223-133632](https://github.com/user-attachments/assets/f39ca0fa-18d6-4c7a-b725-3ae85294fb97)
+
+
+
+
 # Requirements
 - An Arch Linux system (VM / WSL / etc might also work)
 - `yt-dlp` and `kdialog` from AUR
