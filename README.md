@@ -1,2 +1,23 @@
 # generic-youtube-video-downloader
-A bash script TUI that can download YouTube videos, or just audio from videos (with a few options to choose from) 
+A bash script TUI for Arch Linux that can download YouTube videos, or just audio from videos (with a few options to choose from)
+
+*Note*: This script was made largely with the help of multiple coding AIs, specifically GPT-4, as well as the following coding extensions on VSCode: CodeBuddy, Codeium, Amazon Q. Please understand that while I can confirm that the script is not malicious, you bear the burden of risk by running anonymous scripts you find on the internet. I am only posting this as a proof-of-concept after spending months brainstorming features and troubleshooting.
+
+The script will also auto-update yt-dlp for you before the media download begins. While this ensures you are always up to date with the latest yt-dlp and minimizes the chances of running into erros due to an outdated version, you can disable this by opening the script file and removing all of the -U flags from the download commands, if you feel the need.
+
+### Why?
+Because those "download YouTube videos" websites don't stay up forever (most have liimted options anyway), are ad-filled, and all have different UIs that you have to adapt to just to forget them when they inevitably disappear and get replaced.
+
+# Requirements
+- An Arch Linux system (VM / WSL / etc might also work)
+- `yt-dlp` and `kdialog` from AUR
+
+# Usage
+1. Run: `git clone https://github.com/sl1pstream/generic-youtube-video-downloader.git`
+2. Run: `cd generic-youtube-video-downloader`
+3. Run: `chmod +x ytdlp.sh`
+4. Run: `./ytdlpl.sh`
+
+The script itself is fairly intuitive to use, and most options throughout the script have basic descriptions that tells users what each one does. If you are knowledgeable in coding (specifically bash), you are free to read through the code to see how each part works.
+
+**Please direct all yt-dlp related issues to the proper repository. I am not responsible for issues with the tool itself, nor am I a very experienced coder/dev. I simply make scripts every now and then**
