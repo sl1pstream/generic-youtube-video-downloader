@@ -21,10 +21,13 @@ Because those "download YouTube videos" websites don't stay up forever (most hav
 - `yt-dlp` and `kdialog` from AUR
 
 # Usage
-1. Run: `git clone https://github.com/sl1pstream/generic-youtube-video-downloader.git`
-2. Run: `cd generic-youtube-video-downloader`
-3. Run: `chmod +x ytdlp.sh`
-4. Run: `./ytdlp.sh`
+
+**If you already have this repo cloned, skip to step 3.** Run the following in terminal:
+1. Clone this repo: `git clone https://github.com/sl1pstream/generic-youtube-video-downloader.git`
+2. Set the directory: `cd generic-youtube-video-downloader`
+3. Update all files: `git pull --all` (optional)
+4. Make the script executable: `chmod +x ytdlp.sh` (only required on first run)
+5. Run: `./ytdlp.sh`
 
 The script itself is fairly intuitive to use, and most options throughout the script have basic descriptions that tells users what each one does. If you are knowledgeable in coding (specifically bash), you are free to read through the code to see how each part works.
 
