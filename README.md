@@ -31,4 +31,4 @@ Because those "download YouTube videos" websites don't stay up forever (most hav
 
 The script itself is fairly intuitive to use, and most options throughout the script have basic descriptions that tells users what each one does. If you are knowledgeable in coding (specifically bash), you are free to read through the code to see how each part works.
 
-**Please direct all yt-dlp related issues to the proper repository. I am not responsible for issues with the tool itself, nor am I a very experienced coder/dev. I simply make scripts every now and then**
+**Please direct all yt-dlp related issues to the [yt-dlp repo](https://github.com/yt-dlp/yt-dlp). I am not responsible for issues with the tool itself, nor am I a very experienced coder/dev. I make scripts every now and then at best**
