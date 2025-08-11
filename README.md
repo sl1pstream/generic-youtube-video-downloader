@@ -10,7 +10,7 @@ Because those "download YouTube videos" websites don't stay up forever (most hav
 
 # Screenshots
 ![OnPaste 20250223-133357](https://github.com/user-attachments/assets/0543683b-9e32-4740-9902-d4cb257b4a22)
-![OnPaste 20250223-133449](https://github.com/user-attachments/assets/06f37414-5bd5-4bfa-8c04-b19bad5d67a9)
+![OnPaste 20250223-133449](https://github.com/user-attachments/assets/06f37414-5bd5-4bfa-8c04-b19bad5d67a9)     
 ![OnPaste 20250223-133632](https://github.com/user-attachments/assets/f39ca0fa-18d6-4c7a-b725-3ae85294fb97)
 
 
