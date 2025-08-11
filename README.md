@@ -17,8 +17,21 @@ Because those "download YouTube videos" websites don't stay up forever (most hav
 
 
 # Requirements
-- An Arch Linux system (VM / WSL / etc might also work)
-- `yt-dlp` and `kdialog` from AUR
+### System Requirements:
+
+- Linux system or equivalent (virtual machine may work)
+
+### Required Software:
+
+- `yt-dlp` - YouTube downloader tool
+
+- `dialog` - Text-based user interface utility
+
+- `kdialog` - KDE dialog utility
+
+- `firefox` - Browser (for cookie extraction)
+
+- `mktemp` and `mkfifo` - System utilities for temporary files and named pipes
 
 # Usage
 
