@@ -38,7 +38,7 @@ Because those "download YouTube videos" websites don't stay up forever (most hav
 **If you already have this repo cloned, skip to step 3.** Run the following in terminal:
 1. Clone this repo: `git clone https://github.com/sl1pstream/generic-youtube-video-downloader.git`
 2. Set the directory: `cd generic-youtube-video-downloader`
-3. Update all files: `git pull --all` (optional)
+3. (Optional) Update all files: `git pull --all`
 4. Make the script executable: `chmod +x ytdlp.sh` (only required on first run)
 5. Run: `./ytdlp.sh`
 
