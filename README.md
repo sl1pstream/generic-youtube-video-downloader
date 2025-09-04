@@ -2,7 +2,7 @@
 
 ***Now includes video quality selection***
 
-A bash script TUI for Arch Linux that can download YouTube videos, or just audio from videos (with a few options to choose from)
+A bash script TUI for Arch Linux (*possibly* Windows) that can download YouTube videos, or just audio from videos (with a few options to choose from)
 
 *Note*: This script was made largely with the help of multiple coding AIs, specifically GPT-4, as well as the following coding extensions on VSCode: CodeBuddy, Codeium, Amazon Q. Please understand that while I can confirm that the script is not malicious, you bear the burden of risk by running anonymous scripts you find on the internet. I am only posting this as a proof-of-concept after spending months brainstorming features and troubleshooting.
 
@@ -22,7 +22,7 @@ Because those "download YouTube videos" websites don't stay up forever (most hav
 # Requirements
 ### System Requirements:
 
-- Linux system or equivalent (virtual machine may work)
+- Linux system or equivalent (instructions for setting up WSL2 below, a virtual machine may also work)
 
 ### Required Software:
 
@@ -38,6 +38,8 @@ Because those "download YouTube videos" websites don't stay up forever (most hav
 
 # Usage
 
+### For Linux Users
+
 **If you already have this repo cloned, skip to step 3.** Run the following in terminal:
 1. Clone this repo: `git clone https://github.com/sl1pstream/generic-youtube-video-downloader.git`
 2. Set the directory: `cd generic-youtube-video-downloader`
@@ -45,6 +47,36 @@ Because those "download YouTube videos" websites don't stay up forever (most hav
 4. Make the script executable: `chmod +x ytdlp.sh` (only required on first run)
 5. Run: `./ytdlp.sh`
 
+### For Windows Users (WSL Setup)
+
+Since this is a bash script designed for Arch Linux, Windows users need to set up WSL2 with Arch:
+
+1. **Enable WSL2**: Open PowerShell as Administrator and run:
+   ```powershell
+   wsl --install
+   ```
+2. **Install Arch Linux**: Download and install Arch Linux WSL from the Microsoft Store or use:
+   ```powershell
+   wsl --install -d ArchLinux
+   ```
+3. **Restart your computer** when prompted
+4. **Set up Arch Linux**: After restart, create a username and password when prompted
+5. **Install prerequisites** in Arch Linux terminal:
+   ```bash
+   sudo pacman -Syu
+   sudo pacman -S yt-dlp dialog kdialog firefox git
+   ```
+(You can skip installing Firefox if you remove all the `---cookies-from-browser firefox` flags in the script. _Downside: if you get rate limited or flagged for potential bot behavior, you will have to add them back, install Firefox in WSL, and sign into YouTube with it._)
+   
+5. **Continue with the Linux instructions above**
+
+### About Selecting Video Quality
+- **Single Video, Clip:** Some videos have less qualities available to download vs stream. HD options will still be available
+- **Playlist, Channel, Custom:**
+  - For any maximum quality, if a video is not available in that quality, it will choose the next lowest one
+  - If the max quality selected is lower than the minimum quality available for a video, the lowest quality will be downloaded
+
+---
 The script itself is fairly intuitive to use, and most options throughout the script have basic descriptions that tells users what each one does. If you are knowledgeable in coding (specifically bash), you are free to read through the code to see how each part works.
 
 **Please direct all yt-dlp related issues to the [yt-dlp repo](https://github.com/yt-dlp/yt-dlp). I am not responsible for issues with the tool itself, nor am I a very experienced coder/dev. I make scripts every now and then at best**
