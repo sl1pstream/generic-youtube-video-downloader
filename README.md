@@ -1,4 +1,7 @@
-# generic-youtube-video-downloader
+# A Generic YouTube Video Downloader
+
+***Now includes video quality selection***
+
 A bash script TUI for Arch Linux that can download YouTube videos, or just audio from videos (with a few options to choose from)
 
 *Note*: This script was made largely with the help of multiple coding AIs, specifically GPT-4, as well as the following coding extensions on VSCode: CodeBuddy, Codeium, Amazon Q. Please understand that while I can confirm that the script is not malicious, you bear the burden of risk by running anonymous scripts you find on the internet. I am only posting this as a proof-of-concept after spending months brainstorming features and troubleshooting.
