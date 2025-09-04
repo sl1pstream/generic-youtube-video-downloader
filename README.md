@@ -70,6 +70,9 @@ Since this is a bash script designed for Arch Linux, Windows users need to set u
    
 5. **Continue with the Linux instructions above**
 
+### Other Linux Distros
+Install `boxbuddy` and set up an Arch Linux environment, and install the prerequisites (see "Required Software" above).
+
 ### About Selecting Video Quality
 - **Single Video, Clip:** Some videos have less qualities available to download vs stream. HD options will still be available
 - **Playlist, Channel, Custom:**
