@@ -310,6 +310,44 @@ download_channel_videos() {
     dialog --msgbox "Download completed" 5 30
 }
 
+# Function to download channel avatar
+download_avatar() {
+    channel_url=$(prompt_url "Enter the channel URL:")
+    if [ $? -ne 0 ]; then
+        return 1
+    fi
+
+    save_path=$(select_directory "Select Directory to Save Avatar")
+    if [ $? -ne 0 ]; then
+        return 1
+    fi
+
+    dialog --infobox "Downloading avatar..." 3 30
+    
+    # Use curl to get the channel page and extract avatar URL
+    page_content=$(curl -s "$channel_url")
+    avatar_url=$(echo "$page_content" | grep -o '"avatar":{"thumbnails":\[{"url":"[^"]*' | head -1 | cut -d'"' -f8)
+    
+    if [ -z "$avatar_url" ]; then
+        # Try alternative pattern
+        avatar_url=$(echo "$page_content" | grep -o 'channelMetadataRenderer.*avatar.*url":"[^"]*' | head -1 | sed 's/.*url":"//' | cut -d'"' -f1)
+    fi
+    
+    if [ -n "$avatar_url" ]; then
+        # Get channel name
+        channel_name=$(echo "$page_content" | grep -o '<title>[^<]*' | head -1 | sed 's/<title>//' | sed 's/ - YouTube//')
+        [ -z "$channel_name" ] && channel_name="channel"
+        
+        # Clean filename
+        clean_name=$(echo "$channel_name" | tr -d '/<>:"|?*')
+        
+        wget -q "$avatar_url" -O "$save_path/${clean_name}_avatar.jpg" 2>/dev/null
+        dialog --msgbox "Avatar downloaded" 5 30
+    else
+        dialog --msgbox "Could not find channel avatar" 5 30
+    fi
+}
+
 # Function to download videos from a .txt file
 download_from_txt() {
     txt_file=$(kdialog --getopenfilename "" "Select a .txt file containing video URLs")
@@ -488,10 +526,11 @@ download_clip() {
 
 # Main menu
 main_menu() {
-    dialog --stdout --title "YouTube Downloader" --menu "Select an option:" 15 60 5 \
+    dialog --stdout --title "YouTube Downloader" --menu "Select an option:" 17 60 6 \
         "Single Video" "Download a single video" \
         "Playlist" "Download a playlist" \
         "Channel" "Download all videos from a channel" \
+        "Avatar" "Download channel avatar" \
         "Custom" "Download videos from .txt (URL)" \
         "Clip" "Download and trim a video" \
         "Exit" "Exit the program"
@@ -510,6 +549,9 @@ while true; do
             ;;
         "Channel")
             download_channel_videos
+            ;;
+        "Avatar")
+            download_avatar
             ;;
         "Custom")
             download_from_txt
