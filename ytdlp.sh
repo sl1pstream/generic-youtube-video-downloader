@@ -17,7 +17,7 @@ prompt_url() {
 
 # Function to prompt for download type (video or audio) using dialog
 prompt_download_type() {
-    dialog --stdout --menu "Select Download Type" 10 30 2 \
+    dialog --stdout --menu "Select Download Type" 10 40 2 \
         "Video" "Download Video" \
         "Audio" "Download Audio (MP3)"
     if [ $? -ne 0 ]; then
