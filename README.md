@@ -37,7 +37,7 @@ Because those "download YouTube videos" websites don't stay up forever (most hav
 
 - `kdialog` - KDE dialog utility
 
-- `firefox` - Browser (for cookie extraction)
+- `firefox` - Browser for cookie extraction (**Note that you must be signed into YouTube on Firefox**)
 
 - `mktemp` and `mkfifo` - System utilities for temporary files and named pipes
 
