@@ -15,11 +15,9 @@ prompt_url() {
     fi
 }
 
-# Function to prompt for download type (video or audio) using dialog
+# Function to prompt for download type (video or audio) using fzf
 prompt_download_type() {
-    dialog --stdout --menu "Select Download Type" 10 40 2 \
-        "Video" "Download Video" \
-        "Audio" "Download Audio (MP3)"
+    printf 'Video\nAudio' | fzf --height 10 --reverse --border --prompt="Select Download Type: " --header="Video or Audio (M4A)"
     if [ $? -ne 0 ]; then
         return 1
     fi
@@ -35,7 +33,7 @@ get_available_qualities() {
 # Function to prompt for video quality (single video/clip)
 prompt_video_quality() {
     local video_url="$1"
-    local menu_items=()
+    local qualities=()
     declare -A added_qualities
     
     # Get all available video formats (including webm and other formats)
@@ -45,58 +43,50 @@ prompt_video_quality() {
         case "$height" in
             2160|3840) 
                 if [[ ! ${added_qualities["2160p"]} ]]; then
-                    menu_items+=("2160p (4K)" "")
+                    qualities+=("2160p (4K)")
                     added_qualities["2160p"]=1
                 fi ;;
             1440|2560) 
                 if [[ ! ${added_qualities["1440p"]} ]]; then
-                    menu_items+=("1440p (HD)" "")
+                    qualities+=("1440p (HD)")
                     added_qualities["1440p"]=1
                 fi ;;
             1080|1920) 
                 if [[ ! ${added_qualities["1080p"]} ]]; then
-                    menu_items+=("1080p (HD)" "")
+                    qualities+=("1080p (HD)")
                     added_qualities["1080p"]=1
                 fi ;;
             720|1280) 
                 if [[ ! ${added_qualities["720p"]} ]]; then
-                    menu_items+=("720p" "")
+                    qualities+=("720p")
                     added_qualities["720p"]=1
                 fi ;;
             360|640) 
                 if [[ ! ${added_qualities["360p"]} ]]; then
-                    menu_items+=("360p" "")
+                    qualities+=("360p")
                     added_qualities["360p"]=1
                 fi ;;
             240|426) 
                 if [[ ! ${added_qualities["240p"]} ]]; then
-                    menu_items+=("240p" "")
+                    qualities+=("240p")
                     added_qualities["240p"]=1
                 fi ;;
             144|256) 
                 if [[ ! ${added_qualities["144p"]} ]]; then
-                    menu_items+=("144p" "")
+                    qualities+=("144p")
                     added_qualities["144p"]=1
                 fi ;;
         esac
     done
     
-    [[ ${#menu_items[@]} -eq 0 ]] && menu_items=("Best available" "")
+    [[ ${#qualities[@]} -eq 0 ]] && qualities=("Best available")
     
-    dialog --stdout --menu "Select Video Quality" 12 40 6 "${menu_items[@]}"
+    printf '%s\n' "${qualities[@]}" | fzf --height 15 --reverse --border --prompt="Select Video Quality: " --header="Available Qualities"
 }
 
 # Function to prompt for max quality (playlist/channel/custom)
 prompt_max_quality() {
-    dialog --stdout --menu "Select Maximum Quality" 12 40 8 \
-        "2160p (4K)" "" \
-        "1440p (HD)" "" \
-        "1080p (HD)" "" \
-        "720p" "" \
-        "480p" "" \
-        "360p" "" \
-        "240p" "" \
-        "144p" ""
+    printf '2160p (4K)\n1440p (HD)\n1080p (HD)\n720p\n480p\n360p\n240p\n144p' | fzf --height 15 --reverse --border --prompt="Select Maximum Quality: " --header="Max Quality"
 }
 
 # Function to convert quality display name to numeric value
@@ -138,57 +128,38 @@ download_single_video() {
         fi
     fi
 
-    # Create a named pipe for progress
-    progress_pipe=$(mktemp -u)
-    mkfifo "$progress_pipe"
-
-    # Display "Downloading..." message with progress
+    tmpfile=$(mktemp)
+    tail -f "$tmpfile" | fzf --height 40 --reverse --border --prompt="Downloading... " --header="Progress" --disabled --tac --no-sort &
+    fzf_pid=$!
     (
-        while read -r line; do
-            if [[ $line =~ ([0-9]+)\.[0-9]+% ]]; then
-                progress=${BASH_REMATCH[1]}
-                echo "$progress"
-            elif [[ $line =~ ^\[download\].*Destination:\ (.*)$ ]]; then
-                title=$(basename "${BASH_REMATCH[1]}")
-                echo "XXX"
-                echo "$progress"
-                echo "Downloading: $title"
-                echo "XXX"
+        if [ "$download_type" == "Video" ]; then
+            # Download video with selected quality
+            if [ "$quality" == "Best available" ]; then
+                format_selector="best[ext=mp4]/best"
+            else
+                case "$quality" in
+                    "2160p (4K)") height="2160" ;;
+                    "1440p (HD)") height="1440" ;;
+                    "1080p (HD)") height="1080" ;;
+                    "720p") height="720" ;;
+                    "360p") height="360" ;;
+                    "240p") height="240" ;;
+                    "144p") height="144" ;;
+                esac
+                format_selector="bestvideo[height<=${height}][ext=mp4]+bestaudio[ext=m4a]/best[height<=${height}][ext=mp4]/best"
             fi
-        done < "$progress_pipe"
-    ) | dialog --gauge "Downloading..." 8 40 0 &
-
-    gauge_pid=$!
-
-    if [ "$download_type" == "Video" ]; then
-        # Download video with selected quality
-        if [ "$quality" == "Best available" ]; then
-            format_selector="best[ext=mp4]/best"
+            yt-dlp -U --cookies-from-browser firefox -f "$format_selector" \
+            -o "$save_path/%(upload_date>%Y-%m-%d)s - %(title)s.%(ext)s" "$video_url" 2>&1 | stdbuf -oL tr '\r' '\n'
         else
-            case "$quality" in
-                "2160p (4K)") height="2160" ;;
-                "1440p (HD)") height="1440" ;;
-                "1080p (HD)") height="1080" ;;
-                "720p") height="720" ;;
-                "360p") height="360" ;;
-                "240p") height="240" ;;
-                "144p") height="144" ;;
-            esac
-            format_selector="bestvideo[height<=${height}][ext=mp4]+bestaudio[ext=m4a]/best[height<=${height}][ext=mp4]/best"
+            # Download audio as m4a
+            yt-dlp -U --cookies-from-browser firefox -x --audio-format m4a \
+            -o "$save_path/%(upload_date>%Y-%m-%d)s - %(title)s.%(ext)s" "$video_url" 2>&1 | stdbuf -oL tr '\r' '\n'
         fi
-        yt-dlp -U --newline --cookies-from-browser firefox -f "$format_selector" \
-        -o "$save_path/%(upload_date>%Y-%m-%d)s - %(title)s.%(ext)s" "$video_url" > "$progress_pipe" 2>&1
-    else
-        # Download audio as mp3
-        yt-dlp -U --newline --cookies-from-browser firefox -f 'bestaudio' --extract-audio --audio-format mp3 \
-        -o "$save_path/%(upload_date>%Y-%m-%d)s - %(title)s.%(ext)s" "$video_url" > "$progress_pipe" 2>&1
-    fi
-
-    wait $gauge_pid
-    rm "$progress_pipe"
-
-    # Display "Download completed" message
-    dialog --msgbox "Download completed" 5 30
+        echo ""
+        echo "Download completed. Press Enter to continue..."
+    ) > "$tmpfile" 2>&1
+    wait $fzf_pid
+    rm -f "$tmpfile"
 }
 
 # Function to download a playlist
@@ -216,45 +187,26 @@ download_playlist() {
         fi
     fi
 
-    # Create a named pipe for progress
-    progress_pipe=$(mktemp -u)
-    mkfifo "$progress_pipe"
-
-    # Display "Downloading..." message with progress
+    tmpfile=$(mktemp)
+    tail -f "$tmpfile" | fzf --height 40 --reverse --border --prompt="Downloading... " --header="Progress" --disabled --tac --no-sort &
+    fzf_pid=$!
     (
-        while read -r line; do
-            if [[ $line =~ ([0-9]+)\.[0-9]+% ]]; then
-                progress=${BASH_REMATCH[1]}
-                echo "$progress"
-            elif [[ $line =~ ^\[download\].*Destination:\ (.*)$ ]]; then
-                title=$(basename "${BASH_REMATCH[1]}")
-                echo "XXX"
-                echo "$progress"
-                echo "Downloading: $title"
-                echo "XXX"
-            fi
-        done < "$progress_pipe"
-    ) | dialog --gauge "Downloading..." 8 40 0 &
-
-    gauge_pid=$!
-
-    if [ "$download_type" == "Video" ]; then
-        # Download videos with max quality
-        height=$(get_quality_height "$max_quality")
-        format_selector="bestvideo[height<=${height}][ext=mp4]+bestaudio[ext=m4a]/best[height<=${height}][ext=mp4]/worst[ext=mp4]/worst"
-        yt-dlp -U --newline --cookies-from-browser firefox -f "$format_selector" \
-        -o "$save_path/%(upload_date>%Y-%m-%d)s - %(title)s.%(ext)s" "$playlist_url" > "$progress_pipe" 2>&1
-    else
-        # Download audio as mp3
-        yt-dlp -U --newline --cookies-from-browser firefox -f 'bestaudio' --extract-audio --audio-format mp3 \
-        -o "$save_path/%(upload_date>%Y-%m-%d)s - %(title)s.%(ext)s" "$playlist_url" > "$progress_pipe" 2>&1
-    fi
-
-    wait $gauge_pid
-    rm "$progress_pipe"
-
-    # Display "Download completed" message
-    dialog --msgbox "Download completed" 5 30
+        if [ "$download_type" == "Video" ]; then
+            # Download videos with max quality
+            height=$(get_quality_height "$max_quality")
+            format_selector="bestvideo[height<=${height}][ext=mp4]+bestaudio[ext=m4a]/best[height<=${height}][ext=mp4]/worst[ext=mp4]/worst"
+            yt-dlp -U --cookies-from-browser firefox -f "$format_selector" \
+            -o "$save_path/%(upload_date>%Y-%m-%d)s - %(title)s.%(ext)s" "$playlist_url" 2>&1 | stdbuf -oL tr '\r' '\n'
+        else
+            # Download audio as m4a
+            yt-dlp -U --cookies-from-browser firefox -x --audio-format m4a \
+            -o "$save_path/%(upload_date>%Y-%m-%d)s - %(title)s.%(ext)s" "$playlist_url" 2>&1 | stdbuf -oL tr '\r' '\n'
+        fi
+        echo ""
+        echo "Download completed. Press Enter to continue..."
+    ) > "$tmpfile" 2>&1
+    wait $fzf_pid
+    rm -f "$tmpfile"
 }
 
 # Function to download all videos from a channel
@@ -275,39 +227,19 @@ download_channel_videos() {
         return 1
     fi
 
-    # Create a named pipe for progress
-    progress_pipe=$(mktemp -u)
-    mkfifo "$progress_pipe"
-
-    # Display "Downloading..." message with progress
+    tmpfile=$(mktemp)
+    tail -f "$tmpfile" | fzf --height 40 --reverse --border --prompt="Downloading... " --header="Progress" --disabled --tac --no-sort &
+    fzf_pid=$!
     (
-        while read -r line; do
-            if [[ $line =~ ([0-9]+)\.[0-9]+% ]]; then
-                progress=${BASH_REMATCH[1]}
-                echo "$progress"
-            elif [[ $line =~ ^\[download\].*Destination:\ (.*)$ ]]; then
-                title=$(basename "${BASH_REMATCH[1]}")
-                echo "XXX"
-                echo "$progress"
-                echo "Downloading: $title"
-                echo "XXX"
-            fi
-        done < "$progress_pipe"
-    ) | dialog --gauge "Downloading..." 8 40 0 &
-
-    gauge_pid=$!
-
-    # Download all videos from the channel with max quality
-    height=$(get_quality_height "$max_quality")
-    format_selector="bestvideo[height<=${height}][ext=mp4]+bestaudio[ext=m4a]/best[height<=${height}][ext=mp4]/worst[ext=mp4]/worst"
-    yt-dlp -U --newline --cookies-from-browser firefox -f "$format_selector" \
-    -o "$save_path/%(upload_date>%Y-%m-%d)s - %(title)s.%(ext)s" "$channel_url" > "$progress_pipe" 2>&1
-
-    wait $gauge_pid
-    rm "$progress_pipe"
-
-    # Display "Download completed" message
-    dialog --msgbox "Download completed" 5 30
+        height=$(get_quality_height "$max_quality")
+        format_selector="bestvideo[height<=${height}][ext=mp4]+bestaudio[ext=m4a]/best[height<=${height}][ext=mp4]/worst[ext=mp4]/worst"
+        yt-dlp -U --cookies-from-browser firefox -f "$format_selector" \
+        -o "$save_path/%(upload_date>%Y-%m-%d)s - %(title)s.%(ext)s" "$channel_url" 2>&1 | stdbuf -oL tr '\r' '\n'
+        echo ""
+        echo "Download completed. Press Enter to continue..."
+    ) > "$tmpfile" 2>&1
+    wait $fzf_pid
+    rm -f "$tmpfile"
 }
 
 # Function to download channel avatar
@@ -322,7 +254,7 @@ download_avatar() {
         return 1
     fi
 
-    dialog --infobox "Downloading avatar..." 3 30
+    echo "Downloading avatar..." >&2
     
     # Use curl to get the channel page and extract avatar URL
     page_content=$(curl -s "$channel_url")
@@ -342,9 +274,11 @@ download_avatar() {
         clean_name=$(echo "$channel_name" | tr -d '/<>:"|?*')
         
         wget -q "$avatar_url" -O "$save_path/${clean_name}_avatar.jpg" 2>/dev/null
-        dialog --msgbox "Avatar downloaded" 5 30
+        printf "\nAvatar downloaded. Press Enter to continue..." >&2
+        read -r
     else
-        dialog --msgbox "Could not find channel avatar" 5 30
+        printf "\nCould not find channel avatar. Press Enter to continue..." >&2
+        read -r
     fi
 }
 
@@ -373,45 +307,26 @@ download_from_txt() {
         fi
     fi
 
-    for video_url in $(cat "$txt_file"); do
-        # Create a named pipe for progress
-        progress_pipe=$(mktemp -u)
-        mkfifo "$progress_pipe"
-
-        # Display "Downloading..." message with progress
-        (
-            while read -r line; do
-                if [[ $line =~ ([0-9]+)\.[0-9]+% ]]; then
-                    progress=${BASH_REMATCH[1]}
-                    echo "$progress"
-                elif [[ $line =~ ^\[download\].*Destination:\ (.*)$ ]]; then
-                    title=$(basename "${BASH_REMATCH[1]}")
-                    echo "XXX"
-                    echo "$progress"
-                    echo "Downloading: $title"
-                    echo "XXX"
-                fi
-            done < "$progress_pipe"
-        ) | dialog --gauge "Downloading..." 8 40 0 &
-
-        gauge_pid=$!
-
-        if [ "$download_type" == "Video" ]; then
-            height=$(get_quality_height "$max_quality")
-            format_selector="bestvideo[height<=${height}][ext=mp4]+bestaudio[ext=m4a]/best[height<=${height}][ext=mp4]/worst[ext=mp4]/worst"
-            yt-dlp -U --newline --cookies-from-browser firefox -f "$format_selector" \
-            -o "$save_path/%(uploader)s - %(upload_date>%Y-%m-%d)s - %(title)s.%(ext)s" "$video_url" > "$progress_pipe" 2>&1
-        else
-            yt-dlp -U --newline --cookies-from-browser firefox -f 'bestaudio' --extract-audio --audio-format mp3 \
-            -o "$save_path/%(upload_date>%Y-%m-%d)s - %(title)s.%(ext)s" "$video_url" > "$progress_pipe" 2>&1
-        fi
-
-        wait $gauge_pid
-        rm "$progress_pipe"
-    done
-
-    #Display "Download completed" message
-    dialog --msgbox "Download completed" 5 30
+    tmpfile=$(mktemp)
+    tail -f "$tmpfile" | fzf --height 40 --reverse --border --prompt="Downloading... " --header="Progress" --disabled --tac --no-sort &
+    fzf_pid=$!
+    (
+        for video_url in $(cat "$txt_file"); do
+            if [ "$download_type" == "Video" ]; then
+                height=$(get_quality_height "$max_quality")
+                format_selector="bestvideo[height<=${height}][ext=mp4]+bestaudio[ext=m4a]/best[height<=${height}][ext=mp4]/worst[ext=mp4]/worst"
+                yt-dlp -U --cookies-from-browser firefox -f "$format_selector" \
+                -o "$save_path/%(uploader)s - %(upload_date>%Y-%m-%d)s - %(title)s.%(ext)s" "$video_url" 2>&1 | stdbuf -oL tr '\r' '\n'
+            else
+                yt-dlp -U --cookies-from-browser firefox -x --audio-format m4a \
+                -o "$save_path/%(upload_date>%Y-%m-%d)s - %(title)s.%(ext)s" "$video_url" 2>&1 | stdbuf -oL tr '\r' '\n'
+            fi
+        done
+        echo ""
+        echo "Download completed. Press Enter to continue..."
+    ) > "$tmpfile" 2>&1
+    wait $fzf_pid
+    rm -f "$tmpfile"
 }
 
 # Function to download a clipped video
@@ -449,65 +364,47 @@ download_clip() {
         return 1
     fi
 
-    # Create a named pipe for progress
-    progress_pipe=$(mktemp -u)
-    mkfifo "$progress_pipe"
-
-    # Display "Downloading..." message with progress
+    tmpfile=$(mktemp)
+    tail -f "$tmpfile" | fzf --height 40 --reverse --border --prompt="Downloading... " --header="Progress" --disabled --tac --no-sort &
+    fzf_pid=$!
     (
-        while read -r line; do
-            if [[ $line =~ ([0-9]+)\.[0-9]+% ]]; then
-                progress=${BASH_REMATCH[1]}
-                echo "$progress"
-            elif [[ $line =~ ^\[download\].*Destination:\ (.*)$ ]]; then
-                title=$(basename "${BASH_REMATCH[1]}")
-                echo "XXX"
-                echo "$progress"
-                echo "Downloading: $title"
-                echo "XXX"
+        if [ "$download_type" == "Video" ]; then
+            # Download video with selected quality
+            if [ "$quality" == "Best available" ]; then
+                format_selector="best[ext=mp4]/best"
+            else
+                case "$quality" in
+                    "2160p (4K)") height="2160" ;;
+                    "1440p (HD)") height="1440" ;;
+                    "1080p (HD)") height="1080" ;;
+                    "720p") height="720" ;;
+                    "360p") height="360" ;;
+                    "240p") height="240" ;;
+                    "144p") height="144" ;;
+                esac
+                format_selector="bestvideo[height<=${height}][ext=mp4]+bestaudio[ext=m4a]/best[height<=${height}][ext=mp4]/best"
             fi
-        done < "$progress_pipe"
-    ) | dialog --gauge "Downloading..." 8 40 0 &
-
-    gauge_pid=$!
-
-
-    if [ "$download_type" == "Video" ]; then
-        # Download video with selected quality
-        if [ "$quality" == "Best available" ]; then
-            format_selector="best[ext=mp4]/best"
+            yt-dlp -U --cookies-from-browser firefox -f "$format_selector" \
+            -o "$save_path/%(upload_date>%Y-%m-%d)s - %(title)s.%(ext)s" \
+            --exec "echo %(filepath)s > $save_path/filename.txt" "$video_url" 2>&1 | stdbuf -oL tr '\r' '\n'
         else
-            case "$quality" in
-                "2160p (4K)") height="2160" ;;
-                "1440p (HD)") height="1440" ;;
-                "1080p (HD)") height="1080" ;;
-                "720p") height="720" ;;
-                "360p") height="360" ;;
-                "240p") height="240" ;;
-                "144p") height="144" ;;
-            esac
-            format_selector="bestvideo[height<=${height}][ext=mp4]+bestaudio[ext=m4a]/best[height<=${height}][ext=mp4]/best"
+            # Download audio as m4a
+            yt-dlp -U --cookies-from-browser firefox -x --audio-format m4a \
+            -o "$save_path/%(upload_date>%Y-%m-%d)s - %(title)s.%(ext)s" \
+            --exec "echo %(filepath)s > $save_path/filename.txt" "$video_url" 2>&1 | stdbuf -oL tr '\r' '\n'
         fi
-        yt-dlp -U --newline --cookies-from-browser firefox -f "$format_selector" \
-        -o "$save_path/%(upload_date>%Y-%m-%d)s - %(title)s.%(ext)s" \
-        --exec "echo %(filepath)s > $save_path/filename.txt" "$video_url" > "$progress_pipe" 2>&1
-    else
-        # Download audio as mp3
-        yt-dlp -U --newline --cookies-from-browser firefox -f 'bestaudio' --extract-audio --audio-format mp3 \
-        -o "$save_path/%(upload_date>%Y-%m-%d)s - %(title)s.%(ext)s" \
-        --exec "echo %(filepath)s > $save_path/filename.txt" "$video_url" > "$progress_pipe" 2>&1
-    fi
+        echo ""
+        echo "Download completed. Press Enter to continue..."
+    ) > "$tmpfile" 2>&1
+    wait $fzf_pid
+    rm -f "$tmpfile"
 
     full_filename=$(cat "$save_path/filename.txt")
 
-    wait $gauge_pid
-    rm "$progress_pipe"
-
     # Display "Trimming..." message
-    dialog --infobox "Trimming..." 3 20
+    echo "Trimming..." >&2
 
     # Trim the video
-    dialog --infobox "Trimming..." 3 20
     ffmpeg -i "$full_filename" -ss "$start_time" -to "$end_time" \
         -c:v libx264 -c:a aac \
         "$save_path/$(basename "$full_filename" .mp4)_clip.mp4" \
@@ -520,20 +417,14 @@ download_clip() {
     rm -f "$save_path/filename.txt"
 
     # Display completion message
-    dialog --msgbox "Trim completed" 5 30
+    printf "\nTrim completed. Press Enter to continue..." >&2
+    read -r
 }
 
 
 # Main menu
 main_menu() {
-    dialog --stdout --title "YouTube Downloader" --menu "Select an option:" 17 60 6 \
-        "Single Video" "Download a single video" \
-        "Playlist" "Download a playlist" \
-        "Channel" "Download all videos from a channel" \
-        "Avatar" "Download channel avatar" \
-        "Custom" "Download videos from .txt (URL)" \
-        "Clip" "Download and trim a video" \
-        "Exit" "Exit the program"
+    printf 'Single Video\nPlaylist\nChannel\nAvatar\nCustom\nClip\nExit' | fzf --height 17 --reverse --border --prompt="Select an option: " --header="YouTube Downloader"
 }
 
 # Main script
