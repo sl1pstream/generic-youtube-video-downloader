@@ -14,13 +14,13 @@ The script will also auto-update yt-dlp for you before the media download begins
 Because those "download YouTube videos" websites don't stay up forever (most have liimted options anyway), are ad-filled, and all have different UIs that you have to adapt to just to forget them when they inevitably disappear and get replaced.
 
 # Screenshots
-![1](https://github.com/user-attachments/assets/9225bf1c-3cc4-4d71-91b6-cb5c12198e43)
+<img width="798" height="336" alt="image" src="https://github.com/user-attachments/assets/10b631b6-d37a-4ac7-b27e-912ce9bf34a1" />
+<img width="799" height="197" alt="image" src="https://github.com/user-attachments/assets/113e2f8b-9ff2-4b4d-a932-323907e00153" />
+<img width="798" height="293" alt="image" src="https://github.com/user-attachments/assets/1c69a02d-8a14-4860-b1ac-4f478c9f6c83" />
+<img width="799" height="472" alt="image" src="https://github.com/user-attachments/assets/76bb6e1c-4568-4c16-ba85-79279c4c8dc1" />
 
-![2](https://github.com/user-attachments/assets/c0187e61-b6f0-49d9-86db-801e6d05c3fa)
 
-![3](https://github.com/user-attachments/assets/77ea2b85-f91f-46e5-877a-fca55101b637)
 
-![4](https://github.com/user-attachments/assets/740622b1-3d12-4cf4-9827-6dc821bb7c3e)
 
 
 
@@ -35,7 +35,7 @@ Because those "download YouTube videos" websites don't stay up forever (most hav
 
 - `yt-dlp` - YouTube downloader tool
 
-- `dialog` - Text-based user interface utility
+- `fzf` - Text-based user interface utility
 
 - `kdialog` - KDE dialog utility
 
@@ -71,7 +71,7 @@ Since this is a bash script designed for Arch Linux, Windows users need to set u
 5. **Install prerequisites** in Arch Linux terminal:
    ```bash
    sudo pacman -Syu
-   sudo pacman -S yt-dlp dialog kdialog firefox git
+   sudo pacman -S yt-dlp fzf kdialog firefox git
    ```
 (You can skip installing Firefox if you remove all the `---cookies-from-browser firefox` flags in the script. _Downside: if you get rate limited or flagged for potential bot behavior, you will have to add them back, install Firefox in WSL, and sign into YouTube with it._)
    
