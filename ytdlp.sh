@@ -155,8 +155,9 @@ download_single_video() {
             yt-dlp -U --cookies-from-browser firefox -x --audio-format m4a \
             -o "$save_path/%(upload_date>%Y-%m-%d)s - %(title)s.%(ext)s" "$video_url" 2>&1 | stdbuf -oL tr '\r' '\n'
         fi
+        title=$(ls -t "$save_path" | head -1 | sed 's/^[0-9]\{4\}-[0-9]\{2\}-[0-9]\{2\} - //' | sed 's/\.[^.]*$//')
         echo ""
-        echo "Download completed. Press Enter to continue..."
+        echo "Downloaded \"${title}\". Press Enter to continue..."
     ) > "$tmpfile" 2>&1
     wait $fzf_pid
     rm -f "$tmpfile"
@@ -235,8 +236,9 @@ download_channel_videos() {
         format_selector="bestvideo[height<=${height}][ext=mp4]+bestaudio[ext=m4a]/best[height<=${height}][ext=mp4]/worst[ext=mp4]/worst"
         yt-dlp -U --cookies-from-browser firefox -f "$format_selector" \
         -o "$save_path/%(upload_date>%Y-%m-%d)s - %(title)s.%(ext)s" "$channel_url" 2>&1 | stdbuf -oL tr '\r' '\n'
+        channel_name=$(yt-dlp --print "%(channel)s" "$channel_url" 2>/dev/null | head -1)
         echo ""
-        echo "Download completed. Press Enter to continue..."
+        echo "Downloaded all videos from \"${channel_name}\". Press Enter to continue..."
     ) > "$tmpfile" 2>&1
     wait $fzf_pid
     rm -f "$tmpfile"
@@ -254,32 +256,40 @@ download_avatar() {
         return 1
     fi
 
-    echo "Downloading avatar..." >&2
-    
-    # Use curl to get the channel page and extract avatar URL
-    page_content=$(curl -s "$channel_url")
-    avatar_url=$(echo "$page_content" | grep -o '"avatar":{"thumbnails":\[{"url":"[^"]*' | head -1 | cut -d'"' -f8)
-    
-    if [ -z "$avatar_url" ]; then
-        # Try alternative pattern
-        avatar_url=$(echo "$page_content" | grep -o 'channelMetadataRenderer.*avatar.*url":"[^"]*' | head -1 | sed 's/.*url":"//' | cut -d'"' -f1)
-    fi
-    
-    if [ -n "$avatar_url" ]; then
-        # Get channel name
-        channel_name=$(echo "$page_content" | grep -o '<title>[^<]*' | head -1 | sed 's/<title>//' | sed 's/ - YouTube//')
-        [ -z "$channel_name" ] && channel_name="channel"
+    tmpfile=$(mktemp)
+    tail -f "$tmpfile" | fzf --height 40 --reverse --border --prompt="Downloading... " --header="Progress" --disabled --tac --no-sort &
+    fzf_pid=$!
+    (
+        echo "Fetching channel page..."
+        # Use curl to get the channel page and extract avatar URL
+        page_content=$(curl -s "$channel_url")
+        echo "Extracting avatar URL..."
+        avatar_url=$(echo "$page_content" | grep -o '"avatar":{"thumbnails":\[{"url":"[^"]*' | head -1 | cut -d'"' -f8)
         
-        # Clean filename
-        clean_name=$(echo "$channel_name" | tr -d '/<>:"|?*')
+        if [ -z "$avatar_url" ]; then
+            # Try alternative pattern
+            avatar_url=$(echo "$page_content" | grep -o 'channelMetadataRenderer.*avatar.*url":"[^"]*' | head -1 | sed 's/.*url":"//' | cut -d'"' -f1)
+        fi
         
-        wget -q "$avatar_url" -O "$save_path/${clean_name}_avatar.jpg" 2>/dev/null
-        printf "\nAvatar downloaded. Press Enter to continue..." >&2
-        read -r
-    else
-        printf "\nCould not find channel avatar. Press Enter to continue..." >&2
-        read -r
-    fi
+        if [ -n "$avatar_url" ]; then
+            # Get channel name
+            channel_name=$(echo "$page_content" | grep -o '<title>[^<]*' | head -1 | sed 's/<title>//' | sed 's/ - YouTube//')
+            [ -z "$channel_name" ] && channel_name="channel"
+            
+            # Clean filename
+            clean_name=$(echo "$channel_name" | tr -d '/<>:"|?*')
+            
+            echo "Downloading avatar for ${channel_name}..."
+            wget -q "$avatar_url" -O "$save_path/${clean_name}_avatar.jpg" 2>/dev/null
+            echo ""
+            echo "\"${channel_name}\" avatar downloaded. Press Enter to continue..."
+        else
+            echo ""
+            echo "Could not find channel avatar. Press Enter to continue..."
+        fi
+    ) > "$tmpfile" 2>&1
+    wait $fzf_pid
+    rm -f "$tmpfile"
 }
 
 # Function to download videos from a .txt file
@@ -393,32 +403,27 @@ download_clip() {
             -o "$save_path/%(upload_date>%Y-%m-%d)s - %(title)s.%(ext)s" \
             --exec "echo %(filepath)s > $save_path/filename.txt" "$video_url" 2>&1 | stdbuf -oL tr '\r' '\n'
         fi
+        
+        full_filename=$(cat "$save_path/filename.txt")
+        title=$(basename "$full_filename" | sed 's/^[0-9]\{4\}-[0-9]\{2\}-[0-9]\{2\} - //' | sed 's/\.[^.]*$//')
+        
         echo ""
-        echo "Download completed. Press Enter to continue..."
+        echo "Trimming video..."
+        
+        # Trim the video
+        ffmpeg -i "$full_filename" -ss "$start_time" -to "$end_time" \
+            -c:v libx264 -c:a aac \
+            "$save_path/$(basename "$full_filename" .mp4)_clip.mp4" 2>&1 | grep -E "time=|Duration:" | stdbuf -oL tr '\r' '\n'
+        
+        # Delete the original downloaded video
+        rm -f "$full_filename"
+        rm -f "$save_path/filename.txt"
+        
+        echo ""
+        echo "Clipped \"${title}\". Press Enter to continue..."
     ) > "$tmpfile" 2>&1
     wait $fzf_pid
     rm -f "$tmpfile"
-
-    full_filename=$(cat "$save_path/filename.txt")
-
-    # Display "Trimming..." message
-    echo "Trimming..." >&2
-
-    # Trim the video
-    ffmpeg -i "$full_filename" -ss "$start_time" -to "$end_time" \
-        -c:v libx264 -c:a aac \
-        "$save_path/$(basename "$full_filename" .mp4)_clip.mp4" \
-        > /dev/null 2>&1
-    
-    # Delete the original downloaded video
-    rm -f "$(cat "$save_path/filename.txt")"
-
-    # Delete filename.txt
-    rm -f "$save_path/filename.txt"
-
-    # Display completion message
-    printf "\nTrim completed. Press Enter to continue..." >&2
-    read -r
 }
 
 
