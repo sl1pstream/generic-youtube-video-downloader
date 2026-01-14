@@ -56,6 +56,8 @@ Because those "download YouTube videos" websites don't stay up forever (most hav
 
 ### For Windows Users (WSL Setup)
 
+*Please note that this method is untested. As this is primarily meant to run in native Linux environments, I can only offer limited support for issues encountered with this method*
+
 Since this is a bash script designed for Arch Linux, Windows users need to set up WSL2 with Arch:
 
 1. **Enable WSL2**: Open PowerShell as Administrator and run:
