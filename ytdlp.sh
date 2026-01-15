@@ -17,7 +17,7 @@ prompt_url() {
 
 # Function to prompt for download type (video or audio) using fzf
 prompt_download_type() {
-    printf 'Video\nAudio' | fzf --height 10 --reverse --border --prompt="Select Download Type: " --header="Video or Audio (M4A)"
+    printf 'Video\nAudio\nThumbnail' | fzf --height 10 --reverse --border --prompt="Select Download Type: " --header="Video, Audio (M4A), or Thumbnail"
     if [ $? -ne 0 ]; then
         return 1
     fi
@@ -150,14 +150,22 @@ download_single_video() {
             fi
             yt-dlp -U --cookies-from-browser firefox -f "$format_selector" \
             -o "$save_path/%(upload_date>%Y-%m-%d)s - %(title)s.%(ext)s" "$video_url" 2>&1 | stdbuf -oL tr '\r' '\n'
-        else
+        elif [ "$download_type" == "Audio" ]; then
             # Download audio as m4a
             yt-dlp -U --cookies-from-browser firefox -x --audio-format m4a \
+            -o "$save_path/%(upload_date>%Y-%m-%d)s - %(title)s.%(ext)s" "$video_url" 2>&1 | stdbuf -oL tr '\r' '\n'
+        else
+            # Download thumbnail
+            yt-dlp --write-thumbnail --skip-download --convert-thumbnails jpg \
             -o "$save_path/%(upload_date>%Y-%m-%d)s - %(title)s.%(ext)s" "$video_url" 2>&1 | stdbuf -oL tr '\r' '\n'
         fi
         title=$(ls -t "$save_path" | head -1 | sed 's/^[0-9]\{4\}-[0-9]\{2\}-[0-9]\{2\} - //' | sed 's/\.[^.]*$//')
         echo ""
-        echo "Downloaded \"${title}\". Press Enter to continue..."
+        if [ "$download_type" == "Thumbnail" ]; then
+            echo "Downloaded thumbnail of \"${title}\". Press Enter to continue..."
+        else
+            echo "Downloaded \"${title}\". Press Enter to continue..."
+        fi
     ) > "$tmpfile" 2>&1
     wait $fzf_pid
     rm -f "$tmpfile"
@@ -198,13 +206,21 @@ download_playlist() {
             format_selector="bestvideo[height<=${height}][ext=mp4]+bestaudio[ext=m4a]/best[height<=${height}][ext=mp4]/worst[ext=mp4]/worst"
             yt-dlp -U --cookies-from-browser firefox -f "$format_selector" \
             -o "$save_path/%(upload_date>%Y-%m-%d)s - %(title)s.%(ext)s" "$playlist_url" 2>&1 | stdbuf -oL tr '\r' '\n'
-        else
+        elif [ "$download_type" == "Audio" ]; then
             # Download audio as m4a
             yt-dlp -U --cookies-from-browser firefox -x --audio-format m4a \
             -o "$save_path/%(upload_date>%Y-%m-%d)s - %(title)s.%(ext)s" "$playlist_url" 2>&1 | stdbuf -oL tr '\r' '\n'
+        else
+            # Download thumbnails
+            yt-dlp --write-thumbnail --skip-download --convert-thumbnails jpg \
+            -o "$save_path/%(upload_date>%Y-%m-%d)s - %(title)s.%(ext)s" "$playlist_url" 2>&1 | stdbuf -oL tr '\r' '\n'
         fi
         echo ""
-        echo "Download completed. Press Enter to continue..."
+        if [ "$download_type" == "Thumbnail" ]; then
+            echo "Downloaded thumbnails. Press Enter to continue..."
+        else
+            echo "Download completed. Press Enter to continue..."
+        fi
     ) > "$tmpfile" 2>&1
     wait $fzf_pid
     rm -f "$tmpfile"
@@ -222,23 +238,42 @@ download_channel_videos() {
         return 1
     fi
 
-    # Get max quality for video downloads
-    max_quality=$(prompt_max_quality)
+    download_type=$(prompt_download_type)
     if [ $? -ne 0 ]; then
         return 1
+    fi
+
+    # Get max quality if downloading video
+    if [ "$download_type" == "Video" ]; then
+        max_quality=$(prompt_max_quality)
+        if [ $? -ne 0 ]; then
+            return 1
+        fi
     fi
 
     tmpfile=$(mktemp)
     tail -f "$tmpfile" | fzf --height 40 --reverse --border --prompt="Downloading... " --header="Progress" --disabled --tac --no-sort &
     fzf_pid=$!
     (
-        height=$(get_quality_height "$max_quality")
-        format_selector="bestvideo[height<=${height}][ext=mp4]+bestaudio[ext=m4a]/best[height<=${height}][ext=mp4]/worst[ext=mp4]/worst"
-        yt-dlp -U --cookies-from-browser firefox -f "$format_selector" \
-        -o "$save_path/%(upload_date>%Y-%m-%d)s - %(title)s.%(ext)s" "$channel_url" 2>&1 | stdbuf -oL tr '\r' '\n'
+        if [ "$download_type" == "Video" ]; then
+            height=$(get_quality_height "$max_quality")
+            format_selector="bestvideo[height<=${height}][ext=mp4]+bestaudio[ext=m4a]/best[height<=${height}][ext=mp4]/worst[ext=mp4]/worst"
+            yt-dlp -U --cookies-from-browser firefox -f "$format_selector" \
+            -o "$save_path/%(upload_date>%Y-%m-%d)s - %(title)s.%(ext)s" "$channel_url" 2>&1 | stdbuf -oL tr '\r' '\n'
+        elif [ "$download_type" == "Audio" ]; then
+            yt-dlp -U --cookies-from-browser firefox -x --audio-format m4a \
+            -o "$save_path/%(upload_date>%Y-%m-%d)s - %(title)s.%(ext)s" "$channel_url" 2>&1 | stdbuf -oL tr '\r' '\n'
+        else
+            yt-dlp --write-thumbnail --skip-download --convert-thumbnails jpg \
+            -o "$save_path/%(upload_date>%Y-%m-%d)s - %(title)s.%(ext)s" "$channel_url" 2>&1 | stdbuf -oL tr '\r' '\n'
+        fi
         channel_name=$(yt-dlp --print "%(channel)s" "$channel_url" 2>/dev/null | head -1)
         echo ""
-        echo "Downloaded all videos from \"${channel_name}\". Press Enter to continue..."
+        if [ "$download_type" == "Thumbnail" ]; then
+            echo "Downloaded thumbnails from \"${channel_name}\". Press Enter to continue..."
+        else
+            echo "Downloaded all videos from \"${channel_name}\". Press Enter to continue..."
+        fi
     ) > "$tmpfile" 2>&1
     wait $fzf_pid
     rm -f "$tmpfile"
