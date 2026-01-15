@@ -1,3 +1,7 @@
+## 2026-01-04
+- Add support for downloading thumbnails for single videos, playlists, and entire channels
+- Channel downloads now support audio, video, and thumbnails (refer to ["About Selecting Video Quality"](https://github.com/sl1pstream/generic-youtube-video-downloader?tab=readme-ov-file#about-selecting-video-quality) in README.md)
+---
 ## 2026-01-13
 - For single videos/audio, displays title on completion
 - For channel downloads, display channel name on completion
