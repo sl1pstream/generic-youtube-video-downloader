@@ -14,7 +14,8 @@ The script will also auto-update yt-dlp for you before the media download begins
 Because those "download YouTube videos" websites don't stay up forever (most have liimted options anyway), are ad-filled, and all have different UIs that you have to adapt to just to forget them when they inevitably disappear and get replaced.
 
 # Screenshots
-<img width="798" height="336" alt="image" src="https://github.com/user-attachments/assets/10b631b6-d37a-4ac7-b27e-912ce9bf34a1" />
+<img width="800" height="352" alt="image" src="https://github.com/user-attachments/assets/9e53a276-a2bc-4677-b9a0-7dc58322f366" />
+
 <img width="799" height="197" alt="image" src="https://github.com/user-attachments/assets/113e2f8b-9ff2-4b4d-a932-323907e00153" />
 <img width="798" height="293" alt="image" src="https://github.com/user-attachments/assets/1c69a02d-8a14-4860-b1ac-4f478c9f6c83" />
 <img width="799" height="472" alt="image" src="https://github.com/user-attachments/assets/76bb6e1c-4568-4c16-ba85-79279c4c8dc1" />
