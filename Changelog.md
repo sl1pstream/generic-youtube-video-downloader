@@ -1,3 +1,6 @@
+## 2026-02-01
+- Integrated SponsorBlock, to some extent (see the new Settings tab for existing options. More settings may be added in the future)
+---
 ## 2026-01-04
 - Add support for downloading thumbnails for single videos, playlists, and entire channels
 - Channel downloads now support audio, video, and thumbnails (refer to ["About Selecting Video Quality"](https://github.com/sl1pstream/generic-youtube-video-downloader?tab=readme-ov-file#about-selecting-video-quality) in README.md)
