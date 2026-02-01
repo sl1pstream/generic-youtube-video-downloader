@@ -1,5 +1,105 @@
 #!/bin/bash
 
+# Settings file path
+SETTINGS_FILE="$HOME/.config/ytdlp_settings"
+
+# Load SponsorBlock settings
+load_sponsorblock_settings() {
+    if [ -f "$SETTINGS_FILE" ]; then
+        source "$SETTINGS_FILE"
+    fi
+}
+
+# Save SponsorBlock settings
+save_sponsorblock_settings() {
+    mkdir -p "$(dirname "$SETTINGS_FILE")"
+    cat > "$SETTINGS_FILE" << EOF
+SPONSOR=${SPONSOR:-false}
+UNPAID=${UNPAID:-false}
+INTERACTION=${INTERACTION:-false}
+HIGHLIGHT=${HIGHLIGHT:-false}
+INTERMISSION=${INTERMISSION:-false}
+ENDCARDS=${ENDCARDS:-false}
+PREVIEW=${PREVIEW:-false}
+HOOK=${HOOK:-false}
+TANGENTS=${TANGENTS:-false}
+EOF
+}
+
+# Build SponsorBlock arguments
+build_sponsorblock_args() {
+    local args=""
+    local categories=""
+    local mark_categories=""
+    
+    [ "$SPONSOR" = "true" ] && categories="${categories}sponsor,"
+    [ "$UNPAID" = "true" ] && categories="${categories}selfpromo,"
+    [ "$INTERACTION" = "true" ] && categories="${categories}interaction,"
+    [ "$HIGHLIGHT" = "true" ] && categories="${categories}poi_highlight,"
+    [ "$INTERMISSION" = "true" ] && categories="${categories}intro,"
+    [ "$ENDCARDS" = "true" ] && categories="${categories}outro,"
+    [ "$PREVIEW" = "true" ] && categories="${categories}preview,"
+    [ "$TANGENTS" = "true" ] && categories="${categories}filler,"
+    [ "$HOOK" = "true" ] && mark_categories="${mark_categories}music_offtopic,"
+    
+    categories=${categories%,}
+    mark_categories=${mark_categories%,}
+    
+    [ -n "$categories" ] && args="$args --sponsorblock-remove $categories"
+    [ -n "$mark_categories" ] && args="$args --sponsorblock-mark $mark_categories"
+    
+    echo "$args"
+}
+
+# SponsorBlock settings menu
+sponsorblock_settings() {
+    while true; do
+        local menu_items=""
+        menu_items+="$([ "$SPONSOR" = "true" ] && echo "✓ ")Sponsor - Paid promotion, paid referrals and direct advertisements\n"
+        menu_items+="$([ "$UNPAID" = "true" ] && echo "✓ ")Unpaid/Self Promotion - Similar to Sponsor except for unpaid or self promotion\n"
+        menu_items+="$([ "$INTERACTION" = "true" ] && echo "✓ ")Interaction reminder - Short reminder to like, subscribe or follow\n"
+        menu_items+="$([ "$HIGHLIGHT" = "true" ] && echo "✓ ")Highlight - The part of the video that most people are looking for\n"
+        menu_items+="$([ "$INTERMISSION" = "true" ] && echo "✓ ")Intermission/Intro Animation - Interval without actual content\n"
+        menu_items+="$([ "$ENDCARDS" = "true" ] && echo "✓ ")Endcards/Credits - Credits or when YouTube endcards appear\n"
+        menu_items+="$([ "$PREVIEW" = "true" ] && echo "✓ ")Preview/Recap - Collection of clips showing what's coming up\n"
+        menu_items+="$([ "$HOOK" = "true" ] && echo "✓ ")Hook/Greetings - Narrated trailers, greetings and goodbyes (marked, not removed)\n"
+        menu_items+="$([ "$TANGENTS" = "true" ] && echo "✓ ")Tangents/Jokes - Tangential scenes or jokes\n"
+        menu_items+="Back"
+        
+        choice=$(echo -e "$menu_items" | fzf --height 20 --reverse --border --prompt="Toggle SponsorBlock categories: " --header="SponsorBlock Settings (✓ = enabled)")
+        
+        case "$choice" in
+            *"Sponsor -"*) SPONSOR=$([ "$SPONSOR" = "true" ] && echo "false" || echo "true") ;;
+            *"Unpaid/Self Promotion -"*) UNPAID=$([ "$UNPAID" = "true" ] && echo "false" || echo "true") ;;
+            *"Interaction reminder -"*) INTERACTION=$([ "$INTERACTION" = "true" ] && echo "false" || echo "true") ;;
+            *"Highlight -"*) HIGHLIGHT=$([ "$HIGHLIGHT" = "true" ] && echo "false" || echo "true") ;;
+            *"Intermission/Intro Animation -"*) INTERMISSION=$([ "$INTERMISSION" = "true" ] && echo "false" || echo "true") ;;
+            *"Endcards/Credits -"*) ENDCARDS=$([ "$ENDCARDS" = "true" ] && echo "false" || echo "true") ;;
+            *"Preview/Recap -"*) PREVIEW=$([ "$PREVIEW" = "true" ] && echo "false" || echo "true") ;;
+            *"Hook/Greetings -"*) HOOK=$([ "$HOOK" = "true" ] && echo "false" || echo "true") ;;
+            *"Tangents/Jokes -"*) TANGENTS=$([ "$TANGENTS" = "true" ] && echo "false" || echo "true") ;;
+            "Back"|"")
+                save_sponsorblock_settings
+                return
+                ;;
+        esac
+    done
+}
+
+# Settings menu
+settings_menu() {
+    choice=$(echo -e "SponsorBlock Settings\nBack" | fzf --height 10 --reverse --border --prompt="Select setting: " --header="Settings")
+    
+    case "$choice" in
+        "SponsorBlock Settings")
+            sponsorblock_settings
+            ;;
+        "Back"|"")
+            return
+            ;;
+    esac
+}
+
 # Function to select directory using kdialog
 select_directory() {
     kdialog --getexistingdirectory "$1"
@@ -148,12 +248,14 @@ download_single_video() {
                 esac
                 format_selector="bestvideo[height<=${height}][ext=mp4]+bestaudio[ext=m4a]/best[height<=${height}][ext=mp4]/best"
             fi
+            sponsorblock_args=$(build_sponsorblock_args)
             yt-dlp -U --cookies-from-browser firefox -f "$format_selector" \
-            -o "$save_path/%(upload_date>%Y-%m-%d)s - %(title)s.%(ext)s" "$video_url" 2>&1 | stdbuf -oL tr '\r' '\n'
+            -o "$save_path/%(upload_date>%Y-%m-%d)s - %(title)s.%(ext)s" $sponsorblock_args "$video_url" 2>&1 | stdbuf -oL tr '\r' '\n'
         elif [ "$download_type" == "Audio" ]; then
             # Download audio as m4a
+            sponsorblock_args=$(build_sponsorblock_args)
             yt-dlp -U --cookies-from-browser firefox -x --audio-format m4a \
-            -o "$save_path/%(upload_date>%Y-%m-%d)s - %(title)s.%(ext)s" "$video_url" 2>&1 | stdbuf -oL tr '\r' '\n'
+            -o "$save_path/%(upload_date>%Y-%m-%d)s - %(title)s.%(ext)s" $sponsorblock_args "$video_url" 2>&1 | stdbuf -oL tr '\r' '\n'
         else
             # Download thumbnail
             yt-dlp --write-thumbnail --skip-download --convert-thumbnails jpg \
@@ -204,12 +306,14 @@ download_playlist() {
             # Download videos with max quality
             height=$(get_quality_height "$max_quality")
             format_selector="bestvideo[height<=${height}][ext=mp4]+bestaudio[ext=m4a]/best[height<=${height}][ext=mp4]/worst[ext=mp4]/worst"
+            sponsorblock_args=$(build_sponsorblock_args)
             yt-dlp -U --cookies-from-browser firefox -f "$format_selector" \
-            -o "$save_path/%(upload_date>%Y-%m-%d)s - %(title)s.%(ext)s" "$playlist_url" 2>&1 | stdbuf -oL tr '\r' '\n'
+            -o "$save_path/%(upload_date>%Y-%m-%d)s - %(title)s.%(ext)s" $sponsorblock_args "$playlist_url" 2>&1 | stdbuf -oL tr '\r' '\n'
         elif [ "$download_type" == "Audio" ]; then
             # Download audio as m4a
+            sponsorblock_args=$(build_sponsorblock_args)
             yt-dlp -U --cookies-from-browser firefox -x --audio-format m4a \
-            -o "$save_path/%(upload_date>%Y-%m-%d)s - %(title)s.%(ext)s" "$playlist_url" 2>&1 | stdbuf -oL tr '\r' '\n'
+            -o "$save_path/%(upload_date>%Y-%m-%d)s - %(title)s.%(ext)s" $sponsorblock_args "$playlist_url" 2>&1 | stdbuf -oL tr '\r' '\n'
         else
             # Download thumbnails
             yt-dlp --write-thumbnail --skip-download --convert-thumbnails jpg \
@@ -258,11 +362,13 @@ download_channel_videos() {
         if [ "$download_type" == "Video" ]; then
             height=$(get_quality_height "$max_quality")
             format_selector="bestvideo[height<=${height}][ext=mp4]+bestaudio[ext=m4a]/best[height<=${height}][ext=mp4]/worst[ext=mp4]/worst"
+            sponsorblock_args=$(build_sponsorblock_args)
             yt-dlp -U --cookies-from-browser firefox -f "$format_selector" \
-            -o "$save_path/%(upload_date>%Y-%m-%d)s - %(title)s.%(ext)s" "$channel_url" 2>&1 | stdbuf -oL tr '\r' '\n'
+            -o "$save_path/%(upload_date>%Y-%m-%d)s - %(title)s.%(ext)s" $sponsorblock_args "$channel_url" 2>&1 | stdbuf -oL tr '\r' '\n'
         elif [ "$download_type" == "Audio" ]; then
+            sponsorblock_args=$(build_sponsorblock_args)
             yt-dlp -U --cookies-from-browser firefox -x --audio-format m4a \
-            -o "$save_path/%(upload_date>%Y-%m-%d)s - %(title)s.%(ext)s" "$channel_url" 2>&1 | stdbuf -oL tr '\r' '\n'
+            -o "$save_path/%(upload_date>%Y-%m-%d)s - %(title)s.%(ext)s" $sponsorblock_args "$channel_url" 2>&1 | stdbuf -oL tr '\r' '\n'
         else
             yt-dlp --write-thumbnail --skip-download --convert-thumbnails jpg \
             -o "$save_path/%(upload_date>%Y-%m-%d)s - %(title)s.%(ext)s" "$channel_url" 2>&1 | stdbuf -oL tr '\r' '\n'
@@ -356,15 +462,16 @@ download_from_txt() {
     tail -f "$tmpfile" | fzf --height 40 --reverse --border --prompt="Downloading... " --header="Progress" --disabled --tac --no-sort &
     fzf_pid=$!
     (
+        sponsorblock_args=$(build_sponsorblock_args)
         for video_url in $(cat "$txt_file"); do
             if [ "$download_type" == "Video" ]; then
                 height=$(get_quality_height "$max_quality")
                 format_selector="bestvideo[height<=${height}][ext=mp4]+bestaudio[ext=m4a]/best[height<=${height}][ext=mp4]/worst[ext=mp4]/worst"
                 yt-dlp -U --cookies-from-browser firefox -f "$format_selector" \
-                -o "$save_path/%(uploader)s - %(upload_date>%Y-%m-%d)s - %(title)s.%(ext)s" "$video_url" 2>&1 | stdbuf -oL tr '\r' '\n'
+                -o "$save_path/%(uploader)s - %(upload_date>%Y-%m-%d)s - %(title)s.%(ext)s" $sponsorblock_args "$video_url" 2>&1 | stdbuf -oL tr '\r' '\n'
             else
                 yt-dlp -U --cookies-from-browser firefox -x --audio-format m4a \
-                -o "$save_path/%(upload_date>%Y-%m-%d)s - %(title)s.%(ext)s" "$video_url" 2>&1 | stdbuf -oL tr '\r' '\n'
+                -o "$save_path/%(upload_date>%Y-%m-%d)s - %(title)s.%(ext)s" $sponsorblock_args "$video_url" 2>&1 | stdbuf -oL tr '\r' '\n'
             fi
         done
         echo ""
@@ -464,8 +571,11 @@ download_clip() {
 
 # Main menu
 main_menu() {
-    printf 'Single Video\nPlaylist\nChannel\nAvatar\nCustom\nClip\nExit' | fzf --height 17 --reverse --border --prompt="Select an option: " --header="YouTube Downloader"
+    printf 'Single Video\nPlaylist\nChannel\nAvatar\nCustom\nClip\nSettings\nExit' | fzf --height 18 --reverse --border --prompt="Select an option: " --header="YouTube Downloader"
 }
+
+# Load settings on startup
+load_sponsorblock_settings
 
 # Main script
 while true; do
@@ -489,6 +599,9 @@ while true; do
             ;;
         "Clip")
             download_clip
+            ;;
+        "Settings")
+            settings_menu
             ;;
         "Exit")
             exit 0
