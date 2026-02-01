@@ -1,5 +1,6 @@
 ## 2026-02-01
 - Integrated SponsorBlock, to some extent (see the new Settings tab for existing options. More settings may be added in the future)
+- Script will now create and write to file `$HOME/.config/ytdlp_settings` to keep current/future settings options persistent across instances
 ---
 ## 2026-01-04
 - Add support for downloading thumbnails for single videos, playlists, and entire channels
