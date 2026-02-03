@@ -1,3 +1,6 @@
+## 2026-02-03
+- Hotfix for an error with deno. Script now uses `--extractor-args "youtube:player_js_variant=tv"`. This change will be kept as long as it works
+---
 ## 2026-02-01
 - Integrated SponsorBlock, to some extent (see the new Settings tab for existing options. More settings may be added in the future)
 - Script will now create and write to file `$HOME/.config/ytdlp_settings` to keep current/future settings options persistent across instances
