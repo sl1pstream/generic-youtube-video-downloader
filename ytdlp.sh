@@ -249,16 +249,16 @@ download_single_video() {
                 format_selector="bestvideo[height<=${height}][ext=mp4]+bestaudio[ext=m4a]/best[height<=${height}][ext=mp4]/best"
             fi
             sponsorblock_args=$(build_sponsorblock_args)
-            yt-dlp -U --cookies-from-browser firefox -f "$format_selector" \
+            yt-dlp -U --extractor-args "youtube:player_js_variant=tv" --cookies-from-browser firefox -f "$format_selector" \
             -o "$save_path/%(upload_date>%Y-%m-%d)s - %(title)s.%(ext)s" $sponsorblock_args "$video_url" 2>&1 | stdbuf -oL tr '\r' '\n'
         elif [ "$download_type" == "Audio" ]; then
             # Download audio as m4a
             sponsorblock_args=$(build_sponsorblock_args)
-            yt-dlp -U --cookies-from-browser firefox -x --audio-format m4a \
+            yt-dlp -U --extractor-args "youtube:player_js_variant=tv" --cookies-from-browser firefox -x --audio-format m4a \
             -o "$save_path/%(upload_date>%Y-%m-%d)s - %(title)s.%(ext)s" $sponsorblock_args "$video_url" 2>&1 | stdbuf -oL tr '\r' '\n'
         else
             # Download thumbnail
-            yt-dlp --write-thumbnail --skip-download --convert-thumbnails jpg \
+            yt-dlp --extractor-args "youtube:player_js_variant=tv" --write-thumbnail --skip-download --convert-thumbnails jpg \
             -o "$save_path/%(upload_date>%Y-%m-%d)s - %(title)s.%(ext)s" "$video_url" 2>&1 | stdbuf -oL tr '\r' '\n'
         fi
         title=$(ls -t "$save_path" | head -1 | sed 's/^[0-9]\{4\}-[0-9]\{2\}-[0-9]\{2\} - //' | sed 's/\.[^.]*$//')
@@ -307,16 +307,16 @@ download_playlist() {
             height=$(get_quality_height "$max_quality")
             format_selector="bestvideo[height<=${height}][ext=mp4]+bestaudio[ext=m4a]/best[height<=${height}][ext=mp4]/worst[ext=mp4]/worst"
             sponsorblock_args=$(build_sponsorblock_args)
-            yt-dlp -U --cookies-from-browser firefox -f "$format_selector" \
+            yt-dlp -U --extractor-args "youtube:player_js_variant=tv" --cookies-from-browser firefox -f "$format_selector" \
             -o "$save_path/%(upload_date>%Y-%m-%d)s - %(title)s.%(ext)s" $sponsorblock_args "$playlist_url" 2>&1 | stdbuf -oL tr '\r' '\n'
         elif [ "$download_type" == "Audio" ]; then
             # Download audio as m4a
             sponsorblock_args=$(build_sponsorblock_args)
-            yt-dlp -U --cookies-from-browser firefox -x --audio-format m4a \
+            yt-dlp -U --extractor-args "youtube:player_js_variant=tv" --cookies-from-browser firefox -x --audio-format m4a \
             -o "$save_path/%(upload_date>%Y-%m-%d)s - %(title)s.%(ext)s" $sponsorblock_args "$playlist_url" 2>&1 | stdbuf -oL tr '\r' '\n'
         else
             # Download thumbnails
-            yt-dlp --write-thumbnail --skip-download --convert-thumbnails jpg \
+            yt-dlp --extractor-args "youtube:player_js_variant=tv" --write-thumbnail --skip-download --convert-thumbnails jpg \
             -o "$save_path/%(upload_date>%Y-%m-%d)s - %(title)s.%(ext)s" "$playlist_url" 2>&1 | stdbuf -oL tr '\r' '\n'
         fi
         echo ""
@@ -363,17 +363,17 @@ download_channel_videos() {
             height=$(get_quality_height "$max_quality")
             format_selector="bestvideo[height<=${height}][ext=mp4]+bestaudio[ext=m4a]/best[height<=${height}][ext=mp4]/worst[ext=mp4]/worst"
             sponsorblock_args=$(build_sponsorblock_args)
-            yt-dlp -U --cookies-from-browser firefox -f "$format_selector" \
+            yt-dlp -U --extractor-args "youtube:player_js_variant=tv" --cookies-from-browser firefox -f "$format_selector" \
             -o "$save_path/%(upload_date>%Y-%m-%d)s - %(title)s.%(ext)s" $sponsorblock_args "$channel_url" 2>&1 | stdbuf -oL tr '\r' '\n'
         elif [ "$download_type" == "Audio" ]; then
             sponsorblock_args=$(build_sponsorblock_args)
-            yt-dlp -U --cookies-from-browser firefox -x --audio-format m4a \
+            yt-dlp -U --extractor-args "youtube:player_js_variant=tv" --cookies-from-browser firefox -x --audio-format m4a \
             -o "$save_path/%(upload_date>%Y-%m-%d)s - %(title)s.%(ext)s" $sponsorblock_args "$channel_url" 2>&1 | stdbuf -oL tr '\r' '\n'
         else
-            yt-dlp --write-thumbnail --skip-download --convert-thumbnails jpg \
+            yt-dlp --extractor-args "youtube:player_js_variant=tv" --write-thumbnail --skip-download --convert-thumbnails jpg \
             -o "$save_path/%(upload_date>%Y-%m-%d)s - %(title)s.%(ext)s" "$channel_url" 2>&1 | stdbuf -oL tr '\r' '\n'
         fi
-        channel_name=$(yt-dlp --print "%(channel)s" "$channel_url" 2>/dev/null | head -1)
+        channel_name=$(yt-dlp --extractor-args "youtube:player_js_variant=tv" --print "%(channel)s" "$channel_url" 2>/dev/null | head -1)
         echo ""
         if [ "$download_type" == "Thumbnail" ]; then
             echo "Downloaded thumbnails from \"${channel_name}\". Press Enter to continue..."
@@ -467,10 +467,10 @@ download_from_txt() {
             if [ "$download_type" == "Video" ]; then
                 height=$(get_quality_height "$max_quality")
                 format_selector="bestvideo[height<=${height}][ext=mp4]+bestaudio[ext=m4a]/best[height<=${height}][ext=mp4]/worst[ext=mp4]/worst"
-                yt-dlp -U --cookies-from-browser firefox -f "$format_selector" \
+                yt-dlp -U --extractor-args "youtube:player_js_variant=tv" --cookies-from-browser firefox -f "$format_selector" \
                 -o "$save_path/%(uploader)s - %(upload_date>%Y-%m-%d)s - %(title)s.%(ext)s" $sponsorblock_args "$video_url" 2>&1 | stdbuf -oL tr '\r' '\n'
             else
-                yt-dlp -U --cookies-from-browser firefox -x --audio-format m4a \
+                yt-dlp -U --extractor-args "youtube:player_js_variant=tv" --cookies-from-browser firefox -x --audio-format m4a \
                 -o "$save_path/%(upload_date>%Y-%m-%d)s - %(title)s.%(ext)s" $sponsorblock_args "$video_url" 2>&1 | stdbuf -oL tr '\r' '\n'
             fi
         done
@@ -536,12 +536,12 @@ download_clip() {
                 esac
                 format_selector="bestvideo[height<=${height}][ext=mp4]+bestaudio[ext=m4a]/best[height<=${height}][ext=mp4]/best"
             fi
-            yt-dlp -U --cookies-from-browser firefox -f "$format_selector" \
+            yt-dlp -U --extractor-args "youtube:player_js_variant=tv" --cookies-from-browser firefox -f "$format_selector" \
             -o "$save_path/%(upload_date>%Y-%m-%d)s - %(title)s.%(ext)s" \
             --exec "echo %(filepath)s > $save_path/filename.txt" "$video_url" 2>&1 | stdbuf -oL tr '\r' '\n'
         else
             # Download audio as m4a
-            yt-dlp -U --cookies-from-browser firefox -x --audio-format m4a \
+            yt-dlp -U --extractor-args "youtube:player_js_variant=tv" --cookies-from-browser firefox -x --audio-format m4a \
             -o "$save_path/%(upload_date>%Y-%m-%d)s - %(title)s.%(ext)s" \
             --exec "echo %(filepath)s > $save_path/filename.txt" "$video_url" 2>&1 | stdbuf -oL tr '\r' '\n'
         fi
