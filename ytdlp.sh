@@ -102,12 +102,12 @@ settings_menu() {
 
 # Function to select directory using kdialog
 select_directory() {
-    kdialog --getexistingdirectory "$1"
+    kdialog --getexistingdirectory "$1" 2>/dev/null
 }
 
 # Function to prompt for a URL using kdialog
 prompt_url() {
-    url=$(kdialog --inputbox "$1")
+    url=$(kdialog --inputbox "$1" 2>/dev/null)
     if [ $? -ne 0 ]; then
         return 1
     else
@@ -435,7 +435,7 @@ download_avatar() {
 
 # Function to download videos from a .txt file
 download_from_txt() {
-    txt_file=$(kdialog --getopenfilename "" "Select a .txt file containing video URLs")
+    txt_file=$(kdialog --getopenfilename "" "Select a .txt file containing video URLs" 2>/dev/null)
     if [ $? -ne 0 ]; then
         return 1
     fi
@@ -493,7 +493,7 @@ download_clip() {
         return 1
     fi
 
-    download_type=$(prompt_download_type)
+    download_type=$(printf 'Video\nAudio' | fzf --height 10 --reverse --border --prompt="Select Download Type: " --header="Video or Audio (M4A)")
     if [ $? -ne 0 ]; then
         return 1
     fi
@@ -506,12 +506,12 @@ download_clip() {
         fi
     fi
 
-    start_time=$(kdialog --inputbox "Enter start time (HH:MM:SS):")
+    start_time=$(kdialog --inputbox "Enter start time (HH:MM:SS):" 2>/dev/null)
     if [ $? -ne 0 ]; then
         return 1
     fi
 
-    end_time=$(kdialog --inputbox "Enter end time (HH:MM:SS):")
+    end_time=$(kdialog --inputbox "Enter end time (HH:MM:SS):" 2>/dev/null)
     if [ $? -ne 0 ]; then
         return 1
     fi
