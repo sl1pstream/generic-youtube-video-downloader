@@ -1,3 +1,6 @@
+## 2026-03-22
+- Suppress useless kdialog warning: "qt.qpa.services: Failed to register with host portal QDBusError("org.freedesktop.portal.Error.Failed", "Could not register app ID: Connection already associated with an application ID")". TUI works fine regardless
+---
 ## 2026-02-03
 - Hotfix for an error with deno. Script now uses `--extractor-args "youtube:player_js_variant=tv"`. This change will be kept as long as it works
 ---
