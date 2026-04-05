@@ -1,3 +1,6 @@
+## 2026-04-05
+- QOL: Remove "output" text showing above TUI after script finishes running
+---
 ## 2026-03-22
 - Suppress useless kdialog warning: "qt.qpa.services: Failed to register with host portal QDBusError("org.freedesktop.portal.Error.Failed", "Could not register app ID: Connection already associated with an application ID")". TUI works fine regardless
 ---
