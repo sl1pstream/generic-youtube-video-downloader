@@ -229,7 +229,11 @@ download_single_video() {
     fi
 
     tmpfile=$(mktemp)
-    tail -f "$tmpfile" | fzf --height 40 --reverse --border --prompt="Downloading... " --header="Progress" --disabled --tac --no-sort &
+    fifo="/tmp/progress_fifo.$$"
+    mkfifo "$fifo"
+    tail -f "$tmpfile" > "$fifo" &
+    tail_pid=$!
+    fzf --height 40 --reverse --border --prompt="Downloading... " --header="Progress" --tac --no-sort < "$fifo" > /dev/null &
     fzf_pid=$!
     (
         if [ "$download_type" == "Video" ]; then
@@ -269,8 +273,9 @@ download_single_video() {
             echo "Downloaded \"${title}\". Press Enter to continue..."
         fi
     ) > "$tmpfile" 2>&1
+    kill $tail_pid
     wait $fzf_pid
-    rm -f "$tmpfile"
+    rm -f "$tmpfile" "$fifo"
 }
 
 # Function to download a playlist
@@ -299,7 +304,11 @@ download_playlist() {
     fi
 
     tmpfile=$(mktemp)
-    tail -f "$tmpfile" | fzf --height 40 --reverse --border --prompt="Downloading... " --header="Progress" --disabled --tac --no-sort &
+    fifo="/tmp/progress_fifo.$$"
+    mkfifo "$fifo"
+    tail -f "$tmpfile" > "$fifo" &
+    tail_pid=$!
+    fzf --height 40 --reverse --border --prompt="Downloading... " --header="Progress" --tac --no-sort < "$fifo" > /dev/null &
     fzf_pid=$!
     (
         if [ "$download_type" == "Video" ]; then
@@ -326,8 +335,9 @@ download_playlist() {
             echo "Download completed. Press Enter to continue..."
         fi
     ) > "$tmpfile" 2>&1
+    kill $tail_pid
     wait $fzf_pid
-    rm -f "$tmpfile"
+    rm -f "$tmpfile" "$fifo"
 }
 
 # Function to download all videos from a channel
@@ -356,7 +366,11 @@ download_channel_videos() {
     fi
 
     tmpfile=$(mktemp)
-    tail -f "$tmpfile" | fzf --height 40 --reverse --border --prompt="Downloading... " --header="Progress" --disabled --tac --no-sort &
+    fifo="/tmp/progress_fifo.$$"
+    mkfifo "$fifo"
+    tail -f "$tmpfile" > "$fifo" &
+    tail_pid=$!
+    fzf --height 40 --reverse --border --prompt="Downloading... " --header="Progress" --tac --no-sort < "$fifo" > /dev/null &
     fzf_pid=$!
     (
         if [ "$download_type" == "Video" ]; then
@@ -381,8 +395,9 @@ download_channel_videos() {
             echo "Downloaded all videos from \"${channel_name}\". Press Enter to continue..."
         fi
     ) > "$tmpfile" 2>&1
+    kill $tail_pid
     wait $fzf_pid
-    rm -f "$tmpfile"
+    rm -f "$tmpfile" "$fifo"
 }
 
 # Function to download channel avatar
@@ -398,7 +413,11 @@ download_avatar() {
     fi
 
     tmpfile=$(mktemp)
-    tail -f "$tmpfile" | fzf --height 40 --reverse --border --prompt="Downloading... " --header="Progress" --disabled --tac --no-sort &
+    fifo="/tmp/progress_fifo.$$"
+    mkfifo "$fifo"
+    tail -f "$tmpfile" > "$fifo" &
+    tail_pid=$!
+    fzf --height 40 --reverse --border --prompt="Downloading... " --header="Progress" --tac --no-sort < "$fifo" > /dev/null &
     fzf_pid=$!
     (
         echo "Fetching channel page..."
@@ -429,8 +448,9 @@ download_avatar() {
             echo "Could not find channel avatar. Press Enter to continue..."
         fi
     ) > "$tmpfile" 2>&1
+    kill $tail_pid
     wait $fzf_pid
-    rm -f "$tmpfile"
+    rm -f "$tmpfile" "$fifo"
 }
 
 # Function to download videos from a .txt file
@@ -459,7 +479,11 @@ download_from_txt() {
     fi
 
     tmpfile=$(mktemp)
-    tail -f "$tmpfile" | fzf --height 40 --reverse --border --prompt="Downloading... " --header="Progress" --disabled --tac --no-sort &
+    fifo="/tmp/progress_fifo.$$"
+    mkfifo "$fifo"
+    tail -f "$tmpfile" > "$fifo" &
+    tail_pid=$!
+    fzf --height 40 --reverse --border --prompt="Downloading... " --header="Progress" --tac --no-sort < "$fifo" > /dev/null &
     fzf_pid=$!
     (
         sponsorblock_args=$(build_sponsorblock_args)
@@ -477,8 +501,9 @@ download_from_txt() {
         echo ""
         echo "Download completed. Press Enter to continue..."
     ) > "$tmpfile" 2>&1
+    kill $tail_pid
     wait $fzf_pid
-    rm -f "$tmpfile"
+    rm -f "$tmpfile" "$fifo"
 }
 
 # Function to download a clipped video
@@ -517,7 +542,11 @@ download_clip() {
     fi
 
     tmpfile=$(mktemp)
-    tail -f "$tmpfile" | fzf --height 40 --reverse --border --prompt="Downloading... " --header="Progress" --disabled --tac --no-sort &
+    fifo="/tmp/progress_fifo.$$"
+    mkfifo "$fifo"
+    tail -f "$tmpfile" > "$fifo" &
+    tail_pid=$!
+    fzf --height 40 --reverse --border --prompt="Downloading... " --header="Progress" --tac --no-sort < "$fifo" > /dev/null &
     fzf_pid=$!
     (
         if [ "$download_type" == "Video" ]; then
@@ -564,8 +593,9 @@ download_clip() {
         echo ""
         echo "Clipped \"${title}\". Press Enter to continue..."
     ) > "$tmpfile" 2>&1
+    kill $tail_pid
     wait $fzf_pid
-    rm -f "$tmpfile"
+    rm -f "$tmpfile" "$fifo"
 }
 
 
@@ -579,6 +609,7 @@ load_sponsorblock_settings
 
 # Main script
 while true; do
+    clear
     choice=$(main_menu)
 
     case $choice in
