@@ -86,8 +86,8 @@ Install `boxbuddy` and set up an Arch Linux environment, and install the prerequ
 ### About Selecting Video Quality
 - **Single Video, Clip:** Some videos have less qualities available to download vs stream. HD options will still be available
 - **Playlist, Channel, Custom:**
-  - For any maximum quality, if a video is not available in that quality, it will choose the next lowest one
-  - If the minimum quality selected is lower than the minimum quality available for a video, the lowest quality will be downloaded
+  - For any maximum quality, if a video is not available in that quality, the video with the next lowest quality will be chosen
+  - If the quality selected is lower than the minimum quality available for a video, the lowest quality will be downloaded
 
 ---
 The script itself is fairly intuitive to use, and most options throughout the script have basic descriptions that tells users what each one does. If you are knowledgeable in coding (specifically bash), you are free to read through the code to see how each part works.
