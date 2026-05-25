@@ -11,7 +11,7 @@ A bash script TUI for Arch Linux (*possibly* Windows) that can download YouTube 
 The script will also auto-update yt-dlp for you before the media download begins. While this ensures you are always up to date with the latest yt-dlp and minimizes the chances of running into erros due to an outdated version, you can disable this by opening the script file and removing all of the -U flags from the download commands, if you feel the need.
 
 ### Why?
-Because those "download YouTube videos" websites don't stay up forever (most have liimted options anyway), are ad-filled, and all have different UIs that you have to adapt to just to forget them when they inevitably disappear and get replaced.
+Because those "download YouTube videos" websites don't stay up forever (most have limited options anyway), are ad-filled, and all have different UIs that you have to adapt to just to forget them when they inevitably disappear and get replaced.
 
 # Screenshots
 <img width="800" height="352" alt="image" src="https://github.com/user-attachments/assets/9e53a276-a2bc-4677-b9a0-7dc58322f366" />
