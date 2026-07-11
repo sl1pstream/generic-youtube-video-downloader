@@ -1,3 +1,5 @@
+## 2026-07-11
+- Fix: Donwload status no longer shows success where the video didn't download, using the last modified file in the user-selected directory
 ## 2026-04-05
 - QOL: Remove "output" text showing above TUI after script finishes running
 ---
