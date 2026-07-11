@@ -229,6 +229,7 @@ download_single_video() {
     fi
 
     tmpfile=$(mktemp)
+    downloaded_file=$(mktemp)
     fifo="/tmp/progress_fifo.$$"
     mkfifo "$fifo"
     tail -f "$tmpfile" > "$fifo" &
@@ -254,28 +255,36 @@ download_single_video() {
             fi
             sponsorblock_args=$(build_sponsorblock_args)
             yt-dlp -U --extractor-args "youtube:player_js_variant=tv" --cookies-from-browser firefox -f "$format_selector" \
-            -o "$save_path/%(upload_date>%Y-%m-%d)s - %(title)s.%(ext)s" $sponsorblock_args "$video_url" 2>&1 | stdbuf -oL tr '\r' '\n'
+            -o "$save_path/%(upload_date>%Y-%m-%d)s - %(title)s.%(ext)s" --print-to-file after_move:filepath "$downloaded_file" $sponsorblock_args "$video_url" 2>&1 | stdbuf -oL tr '\r' '\n'
+            download_status=${PIPESTATUS[0]}
         elif [ "$download_type" == "Audio" ]; then
             # Download audio as m4a
             sponsorblock_args=$(build_sponsorblock_args)
             yt-dlp -U --extractor-args "youtube:player_js_variant=tv" --cookies-from-browser firefox -x --audio-format m4a \
-            -o "$save_path/%(upload_date>%Y-%m-%d)s - %(title)s.%(ext)s" $sponsorblock_args "$video_url" 2>&1 | stdbuf -oL tr '\r' '\n'
+            -o "$save_path/%(upload_date>%Y-%m-%d)s - %(title)s.%(ext)s" --print-to-file after_move:filepath "$downloaded_file" $sponsorblock_args "$video_url" 2>&1 | stdbuf -oL tr '\r' '\n'
+            download_status=${PIPESTATUS[0]}
         else
             # Download thumbnail
             yt-dlp --extractor-args "youtube:player_js_variant=tv" --write-thumbnail --skip-download --convert-thumbnails jpg \
-            -o "$save_path/%(upload_date>%Y-%m-%d)s - %(title)s.%(ext)s" "$video_url" 2>&1 | stdbuf -oL tr '\r' '\n'
+            -o "$save_path/%(upload_date>%Y-%m-%d)s - %(title)s.%(ext)s" --print-to-file after_move:filepath "$downloaded_file" "$video_url" 2>&1 | stdbuf -oL tr '\r' '\n'
+            download_status=${PIPESTATUS[0]}
         fi
-        title=$(ls -t "$save_path" | head -1 | sed 's/^[0-9]\{4\}-[0-9]\{2\}-[0-9]\{2\} - //' | sed 's/\.[^.]*$//')
         echo ""
-        if [ "$download_type" == "Thumbnail" ]; then
-            echo "Downloaded thumbnail of \"${title}\". Press Enter to continue..."
+        if [ "$download_status" -eq 0 ] && [ -s "$downloaded_file" ]; then
+            full_filename=$(tail -n 1 "$downloaded_file")
+            title=$(basename "$full_filename" | sed 's/^[0-9]\{4\}-[0-9]\{2\}-[0-9]\{2\} - //' | sed 's/\.[^.]*$//')
+            if [ "$download_type" == "Thumbnail" ]; then
+                echo "Downloaded thumbnail of \"${title}\". Press Enter to continue..."
+            else
+                echo "Downloaded \"${title}\". Press Enter to continue..."
+            fi
         else
-            echo "Downloaded \"${title}\". Press Enter to continue..."
+            echo "Download failed. Press Enter to continue..."
         fi
     ) > "$tmpfile" 2>&1
     kill $tail_pid
     wait $fzf_pid
-    rm -f "$tmpfile" "$fifo"
+    rm -f "$tmpfile" "$fifo" "$downloaded_file"
 }
 
 # Function to download a playlist
