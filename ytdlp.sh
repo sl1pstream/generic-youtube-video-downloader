@@ -2,6 +2,7 @@
 
 # Settings file path
 SETTINGS_FILE="$HOME/.config/ytdlp_settings"
+ARCHIVE_FILE="$HOME/.config/ytdlp_archive.txt"
 
 # Load SponsorBlock settings
 load_sponsorblock_settings() {
@@ -23,7 +24,13 @@ ENDCARDS=${ENDCARDS:-false}
 PREVIEW=${PREVIEW:-false}
 HOOK=${HOOK:-false}
 TANGENTS=${TANGENTS:-false}
+DOWNLOAD_ARCHIVE=${DOWNLOAD_ARCHIVE:-false}
 EOF
+}
+
+# Build archive arguments
+build_archive_args() {
+    [ "$DOWNLOAD_ARCHIVE" = "true" ] && echo "--download-archive $ARCHIVE_FILE" || echo ""
 }
 
 # Build SponsorBlock arguments
@@ -88,16 +95,22 @@ sponsorblock_settings() {
 
 # Settings menu
 settings_menu() {
-    choice=$(echo -e "SponsorBlock Settings\nBack" | fzf --height 10 --reverse --border --prompt="Select setting: " --header="Settings")
-    
-    case "$choice" in
-        "SponsorBlock Settings")
-            sponsorblock_settings
-            ;;
-        "Back"|"")
-            return
-            ;;
-    esac
+    while true; do
+        choice=$(printf 'SponsorBlock Settings\n%sDownload Archive\nBack' "$([ "$DOWNLOAD_ARCHIVE" = "true" ] && echo "✓ ")" | fzf --height 10 --reverse --border --prompt="Select setting: " --header="Settings")
+
+        case "$choice" in
+            "SponsorBlock Settings")
+                sponsorblock_settings
+                ;;
+            *"Download Archive"*)
+                DOWNLOAD_ARCHIVE=$([ "$DOWNLOAD_ARCHIVE" = "true" ] && echo "false" || echo "true")
+                save_sponsorblock_settings
+                ;;
+            "Back"|"")
+                return
+                ;;
+        esac
+    done
 }
 
 # Function to select directory using kdialog
@@ -254,19 +267,22 @@ download_single_video() {
                 format_selector="bestvideo[height<=${height}][ext=mp4]+bestaudio[ext=m4a]/best[height<=${height}][ext=mp4]/best"
             fi
             sponsorblock_args=$(build_sponsorblock_args)
+            archive_args=$(build_archive_args)
             yt-dlp -U --extractor-args "youtube:player_js_variant=tv" --cookies-from-browser firefox -f "$format_selector" \
-            -o "$save_path/%(upload_date>%Y-%m-%d)s - %(title)s.%(ext)s" --print-to-file after_move:filepath "$downloaded_file" $sponsorblock_args "$video_url" 2>&1 | stdbuf -oL tr '\r' '\n'
+            -o "$save_path/%(upload_date>%Y-%m-%d)s - %(title)s.%(ext)s" --print-to-file after_move:filepath "$downloaded_file" $sponsorblock_args $archive_args "$video_url" 2>&1 | stdbuf -oL tr '\r' '\n'
             download_status=${PIPESTATUS[0]}
         elif [ "$download_type" == "Audio" ]; then
             # Download audio as m4a
             sponsorblock_args=$(build_sponsorblock_args)
+            archive_args=$(build_archive_args)
             yt-dlp -U --extractor-args "youtube:player_js_variant=tv" --cookies-from-browser firefox -x --audio-format m4a \
-            -o "$save_path/%(upload_date>%Y-%m-%d)s - %(title)s.%(ext)s" --print-to-file after_move:filepath "$downloaded_file" $sponsorblock_args "$video_url" 2>&1 | stdbuf -oL tr '\r' '\n'
+            -o "$save_path/%(upload_date>%Y-%m-%d)s - %(title)s.%(ext)s" --print-to-file after_move:filepath "$downloaded_file" $sponsorblock_args $archive_args "$video_url" 2>&1 | stdbuf -oL tr '\r' '\n'
             download_status=${PIPESTATUS[0]}
         else
             # Download thumbnail
+            archive_args=$(build_archive_args)
             yt-dlp --extractor-args "youtube:player_js_variant=tv" --write-thumbnail --skip-download --convert-thumbnails jpg \
-            -o "$save_path/%(upload_date>%Y-%m-%d)s - %(title)s.%(ext)s" --print-to-file after_move:filepath "$downloaded_file" "$video_url" 2>&1 | stdbuf -oL tr '\r' '\n'
+            -o "$save_path/%(upload_date>%Y-%m-%d)s - %(title)s.%(ext)s" --print-to-file after_move:filepath "$downloaded_file" $archive_args "$video_url" 2>&1 | stdbuf -oL tr '\r' '\n'
             download_status=${PIPESTATUS[0]}
         fi
         echo ""
@@ -325,17 +341,20 @@ download_playlist() {
             height=$(get_quality_height "$max_quality")
             format_selector="bestvideo[height<=${height}][ext=mp4]+bestaudio[ext=m4a]/best[height<=${height}][ext=mp4]/worst[ext=mp4]/worst"
             sponsorblock_args=$(build_sponsorblock_args)
+            archive_args=$(build_archive_args)
             yt-dlp -U --extractor-args "youtube:player_js_variant=tv" --cookies-from-browser firefox -f "$format_selector" \
-            -o "$save_path/%(upload_date>%Y-%m-%d)s - %(title)s.%(ext)s" $sponsorblock_args "$playlist_url" 2>&1 | stdbuf -oL tr '\r' '\n'
+            -o "$save_path/%(upload_date>%Y-%m-%d)s - %(title)s.%(ext)s" $sponsorblock_args $archive_args "$playlist_url" 2>&1 | stdbuf -oL tr '\r' '\n'
         elif [ "$download_type" == "Audio" ]; then
             # Download audio as m4a
             sponsorblock_args=$(build_sponsorblock_args)
+            archive_args=$(build_archive_args)
             yt-dlp -U --extractor-args "youtube:player_js_variant=tv" --cookies-from-browser firefox -x --audio-format m4a \
-            -o "$save_path/%(upload_date>%Y-%m-%d)s - %(title)s.%(ext)s" $sponsorblock_args "$playlist_url" 2>&1 | stdbuf -oL tr '\r' '\n'
+            -o "$save_path/%(upload_date>%Y-%m-%d)s - %(title)s.%(ext)s" $sponsorblock_args $archive_args "$playlist_url" 2>&1 | stdbuf -oL tr '\r' '\n'
         else
             # Download thumbnails
+            archive_args=$(build_archive_args)
             yt-dlp --extractor-args "youtube:player_js_variant=tv" --write-thumbnail --skip-download --convert-thumbnails jpg \
-            -o "$save_path/%(upload_date>%Y-%m-%d)s - %(title)s.%(ext)s" "$playlist_url" 2>&1 | stdbuf -oL tr '\r' '\n'
+            -o "$save_path/%(upload_date>%Y-%m-%d)s - %(title)s.%(ext)s" $archive_args "$playlist_url" 2>&1 | stdbuf -oL tr '\r' '\n'
         fi
         echo ""
         if [ "$download_type" == "Thumbnail" ]; then
@@ -386,15 +405,18 @@ download_channel_videos() {
             height=$(get_quality_height "$max_quality")
             format_selector="bestvideo[height<=${height}][ext=mp4]+bestaudio[ext=m4a]/best[height<=${height}][ext=mp4]/worst[ext=mp4]/worst"
             sponsorblock_args=$(build_sponsorblock_args)
+            archive_args=$(build_archive_args)
             yt-dlp -U --extractor-args "youtube:player_js_variant=tv" --cookies-from-browser firefox -f "$format_selector" \
-            -o "$save_path/%(upload_date>%Y-%m-%d)s - %(title)s.%(ext)s" $sponsorblock_args "$channel_url" 2>&1 | stdbuf -oL tr '\r' '\n'
+            -o "$save_path/%(upload_date>%Y-%m-%d)s - %(title)s.%(ext)s" $sponsorblock_args $archive_args "$channel_url" 2>&1 | stdbuf -oL tr '\r' '\n'
         elif [ "$download_type" == "Audio" ]; then
             sponsorblock_args=$(build_sponsorblock_args)
+            archive_args=$(build_archive_args)
             yt-dlp -U --extractor-args "youtube:player_js_variant=tv" --cookies-from-browser firefox -x --audio-format m4a \
-            -o "$save_path/%(upload_date>%Y-%m-%d)s - %(title)s.%(ext)s" $sponsorblock_args "$channel_url" 2>&1 | stdbuf -oL tr '\r' '\n'
+            -o "$save_path/%(upload_date>%Y-%m-%d)s - %(title)s.%(ext)s" $sponsorblock_args $archive_args "$channel_url" 2>&1 | stdbuf -oL tr '\r' '\n'
         else
+            archive_args=$(build_archive_args)
             yt-dlp --extractor-args "youtube:player_js_variant=tv" --write-thumbnail --skip-download --convert-thumbnails jpg \
-            -o "$save_path/%(upload_date>%Y-%m-%d)s - %(title)s.%(ext)s" "$channel_url" 2>&1 | stdbuf -oL tr '\r' '\n'
+            -o "$save_path/%(upload_date>%Y-%m-%d)s - %(title)s.%(ext)s" $archive_args "$channel_url" 2>&1 | stdbuf -oL tr '\r' '\n'
         fi
         channel_name=$(yt-dlp --extractor-args "youtube:player_js_variant=tv" --print "%(channel)s" "$channel_url" 2>/dev/null | head -1)
         echo ""
@@ -496,15 +518,16 @@ download_from_txt() {
     fzf_pid=$!
     (
         sponsorblock_args=$(build_sponsorblock_args)
+        archive_args=$(build_archive_args)
         for video_url in $(cat "$txt_file"); do
             if [ "$download_type" == "Video" ]; then
                 height=$(get_quality_height "$max_quality")
                 format_selector="bestvideo[height<=${height}][ext=mp4]+bestaudio[ext=m4a]/best[height<=${height}][ext=mp4]/worst[ext=mp4]/worst"
                 yt-dlp -U --extractor-args "youtube:player_js_variant=tv" --cookies-from-browser firefox -f "$format_selector" \
-                -o "$save_path/%(uploader)s - %(upload_date>%Y-%m-%d)s - %(title)s.%(ext)s" $sponsorblock_args "$video_url" 2>&1 | stdbuf -oL tr '\r' '\n'
+                -o "$save_path/%(uploader)s - %(upload_date>%Y-%m-%d)s - %(title)s.%(ext)s" $sponsorblock_args $archive_args "$video_url" 2>&1 | stdbuf -oL tr '\r' '\n'
             else
                 yt-dlp -U --extractor-args "youtube:player_js_variant=tv" --cookies-from-browser firefox -x --audio-format m4a \
-                -o "$save_path/%(upload_date>%Y-%m-%d)s - %(title)s.%(ext)s" $sponsorblock_args "$video_url" 2>&1 | stdbuf -oL tr '\r' '\n'
+                -o "$save_path/%(upload_date>%Y-%m-%d)s - %(title)s.%(ext)s" $sponsorblock_args $archive_args "$video_url" 2>&1 | stdbuf -oL tr '\r' '\n'
             fi
         done
         echo ""
