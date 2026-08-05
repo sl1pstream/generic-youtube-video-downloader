@@ -1,3 +1,6 @@
+## 2026-08-05
+- Add an option to keep track of downloaded videos in Settings, to avoid repeating downloads when downloading from the same URL (ie. playlist/channel). Not necessary for Avatar or Clip functions. Relevant file paths are at the top of the script
+---
 ## 2026-07-11
 - Fix: Donwload status no longer shows success where the video didn't download, using the last modified file in the user-selected directory
 ## 2026-04-05
