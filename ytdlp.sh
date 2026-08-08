@@ -177,11 +177,11 @@ show_result_menu() {
     [ -n "$summary" ] && header="$status_msg  |  $summary"
     while true; do
         local choice
-        choice=$(printf 'Continue\nView Log\nSave Log' | fzf --height 10 --reverse --border --prompt="" --header="$header" --no-sort)
+        choice=$(printf 'Continue\nView Log\nSave Log' | fzf --height 10 --reverse --border --prompt="Select an option: " --header="$header" --no-sort)
         case "$choice" in
             "View Log")
                 printf 'Continue\nSave Log' | fzf --height 80% --reverse --border \
-                    --prompt="" --header="$header" --no-sort \
+                    --prompt="Select an option: " --header="$header" --no-sort \
                     --preview="cat '$logfile'" \
                     --preview-window=bottom:80%:wrap \
                     --bind='enter:become(echo {})' > /tmp/log_action_$$.txt 2>/dev/null
