@@ -25,7 +25,20 @@ PREVIEW=${PREVIEW:-false}
 HOOK=${HOOK:-false}
 TANGENTS=${TANGENTS:-false}
 DOWNLOAD_ARCHIVE=${DOWNLOAD_ARCHIVE:-false}
+FILENAME_TEMPLATE=${FILENAME_TEMPLATE:-\$d - \$t}
 EOF
+}
+
+# Build yt-dlp output template from user-defined shorthand
+build_output_template() {
+    local tmpl="${FILENAME_TEMPLATE:-\$d - \$t}"
+    tmpl="${tmpl//\$d/%(upload_date>%Y-%m-%d)s}"
+    tmpl="${tmpl//\$t/%(title)s}"
+    tmpl="${tmpl//\$u/%(uploader)s}"
+    tmpl="${tmpl//\$i/%(id)s}"
+    tmpl="${tmpl//\$r/%(resolution)s}"
+    tmpl="${tmpl//\$p/%(playlist_index)s}"
+    echo "${tmpl}.%(ext)s"
 }
 
 # Build archive arguments
@@ -93,10 +106,49 @@ sponsorblock_settings() {
     done
 }
 
+# Filename template settings
+filename_template_settings() {
+    clear
+    echo "Edit Filename Scheme"
+    echo ""
+    echo "Default : \$d - \$t"
+    echo "Current : ${FILENAME_TEMPLATE:-\$d - \$t}"
+    echo ""
+    echo "Available tokens:"
+    echo "  \$d  Upload date (YYYY-MM-DD)"
+    echo "  \$t  Video title"
+    echo "  \$u  Uploader / channel name"
+    echo "  \$i  Video ID"
+    echo "  \$r  Resolution (e.g. 1280x720)"
+    echo "  \$p  Playlist index"
+    echo ""
+    echo "Example: \$u_\$d_\$r_\$t  →  ChannelName_2024-01-15_1280x720_Video Title.mp4"
+    echo ""
+    local error=""
+    while true; do
+        if [ -n "$error" ]; then
+            echo -e "\e[31m$error\e[0m"
+        fi
+        read -e -i "${new_template:-${FILENAME_TEMPLATE:-\$d - \$t}}" -p "Scheme: " new_template
+        if [ -z "$new_template" ]; then
+            return
+        elif [[ "$new_template" == */* || "$new_template" == *\\* ]]; then
+            error="Error: Slashes are not allowed in the filename scheme."
+        else
+            FILENAME_TEMPLATE="$new_template"
+            save_sponsorblock_settings
+            return
+        fi
+    done
+}
+
 # Settings menu
 settings_menu() {
     while true; do
-        choice=$(printf 'SponsorBlock Settings\n%sDownload Archive\nBack' "$([ "$DOWNLOAD_ARCHIVE" = "true" ] && echo "✓ ")" | fzf --height 10 --reverse --border --prompt="Select setting: " --header="Settings")
+        choice=$(printf 'SponsorBlock Settings\n%sDownload Archive\nEdit Filename Scheme (%s)\nBack' \
+            "$([ "$DOWNLOAD_ARCHIVE" = "true" ] && echo "✓ ")" \
+            "${FILENAME_TEMPLATE:-\$d - \$t}" \
+            | fzf --height 10 --reverse --border --prompt="Select setting: " --header="Settings")
 
         case "$choice" in
             "SponsorBlock Settings")
@@ -106,9 +158,52 @@ settings_menu() {
                 DOWNLOAD_ARCHIVE=$([ "$DOWNLOAD_ARCHIVE" = "true" ] && echo "false" || echo "true")
                 save_sponsorblock_settings
                 ;;
+            *"Edit Filename Scheme"*)
+                filename_template_settings
+                ;;
             "Back"|"")
                 return
                 ;;
+        esac
+    done
+}
+
+# Show result menu after download completes
+show_result_menu() {
+    local logfile="$1"
+    local status_msg="$2"
+    local summary="$3"
+    local header="$status_msg"
+    [ -n "$summary" ] && header="$status_msg  |  $summary"
+    while true; do
+        local choice
+        choice=$(printf 'Continue\nView Log\nSave Log' | fzf --height 10 --reverse --border --prompt="" --header="$header" --no-sort)
+        case "$choice" in
+            "View Log")
+                printf 'Continue\nSave Log' | fzf --height 80% --reverse --border \
+                    --prompt="" --header="$header" --no-sort \
+                    --preview="cat '$logfile'" \
+                    --preview-window=bottom:80%:wrap \
+                    --bind='enter:become(echo {})' > /tmp/log_action_$$.txt 2>/dev/null
+                local log_choice; log_choice=$(cat /tmp/log_action_$$.txt 2>/dev/null)
+                rm -f /tmp/log_action_$$.txt
+                case "$log_choice" in
+                    "Save Log")
+                        local dest
+                        dest=$(kdialog --getsavefilename "$HOME/download_log.txt" 2>/dev/null)
+                        [ -n "$dest" ] && cp "$logfile" "$dest"
+                        ;;
+                    *) return ;;
+                esac
+                return
+                ;;
+            "Save Log")
+                local dest
+                dest=$(kdialog --getsavefilename "$HOME/download_log.txt" 2>/dev/null)
+                [ -n "$dest" ] && cp "$logfile" "$dest"
+                return
+                ;;
+            *) return ;;
         esac
     done
 }
@@ -243,6 +338,7 @@ download_single_video() {
 
     tmpfile=$(mktemp)
     downloaded_file=$(mktemp)
+    statusfile=$(mktemp)
     fifo="/tmp/progress_fifo.$$"
     mkfifo "$fifo"
     tail -f "$tmpfile" > "$fifo" &
@@ -268,39 +364,55 @@ download_single_video() {
             fi
             sponsorblock_args=$(build_sponsorblock_args)
             archive_args=$(build_archive_args)
+            local output_template
+            output_template=$(build_output_template)
             yt-dlp -U --extractor-args "youtube:player_js_variant=tv" --cookies-from-browser firefox -f "$format_selector" \
-            -o "$save_path/%(upload_date>%Y-%m-%d)s - %(title)s.%(ext)s" --print-to-file after_move:filepath "$downloaded_file" $sponsorblock_args $archive_args "$video_url" 2>&1 | stdbuf -oL tr '\r' '\n'
+            -o "$save_path/$output_template" --print-to-file after_move:filepath "$downloaded_file" $sponsorblock_args $archive_args "$video_url" 2>&1 | stdbuf -oL tr '\r' '\n'
             download_status=${PIPESTATUS[0]}
         elif [ "$download_type" == "Audio" ]; then
             # Download audio as m4a
             sponsorblock_args=$(build_sponsorblock_args)
             archive_args=$(build_archive_args)
+            local output_template
+            output_template=$(build_output_template)
             yt-dlp -U --extractor-args "youtube:player_js_variant=tv" --cookies-from-browser firefox -x --audio-format m4a \
-            -o "$save_path/%(upload_date>%Y-%m-%d)s - %(title)s.%(ext)s" --print-to-file after_move:filepath "$downloaded_file" $sponsorblock_args $archive_args "$video_url" 2>&1 | stdbuf -oL tr '\r' '\n'
+            -o "$save_path/$output_template" --print-to-file after_move:filepath "$downloaded_file" $sponsorblock_args $archive_args "$video_url" 2>&1 | stdbuf -oL tr '\r' '\n'
             download_status=${PIPESTATUS[0]}
         else
             # Download thumbnail
             archive_args=$(build_archive_args)
+            local output_template
+            output_template=$(build_output_template)
             yt-dlp --extractor-args "youtube:player_js_variant=tv" --write-thumbnail --skip-download --convert-thumbnails jpg \
-            -o "$save_path/%(upload_date>%Y-%m-%d)s - %(title)s.%(ext)s" --print-to-file after_move:filepath "$downloaded_file" $archive_args "$video_url" 2>&1 | stdbuf -oL tr '\r' '\n'
+            -o "$save_path/$output_template" --print-to-file after_move:filepath "$downloaded_file" $archive_args "$video_url" 2>&1 | stdbuf -oL tr '\r' '\n'
             download_status=${PIPESTATUS[0]}
         fi
-        echo ""
         if [ "$download_status" -eq 0 ] && [ -s "$downloaded_file" ]; then
             full_filename=$(tail -n 1 "$downloaded_file")
             title=$(basename "$full_filename" | sed 's/^[0-9]\{4\}-[0-9]\{2\}-[0-9]\{2\} - //' | sed 's/\.[^.]*$//')
             if [ "$download_type" == "Thumbnail" ]; then
-                echo "Downloaded thumbnail of \"${title}\". Press Enter to continue..."
+                echo "success:Downloaded thumbnail of \"${title}\"."
             else
-                echo "Downloaded \"${title}\". Press Enter to continue..."
+                echo "success:Downloaded \"${title}\"."
             fi
         else
-            echo "Download failed. Press Enter to continue..."
-        fi
+            echo "failed:Download failed."
+        fi > "$statusfile"
+        kill $fzf_pid 2>/dev/null
     ) > "$tmpfile" 2>&1
-    kill $tail_pid
-    wait $fzf_pid
-    rm -f "$tmpfile" "$fifo" "$downloaded_file"
+    kill $tail_pid 2>/dev/null
+    wait $fzf_pid 2>/dev/null
+    local status_line; status_line=$(cat "$statusfile")
+    local dl_status_msg summary
+    if [[ "$status_line" == success:* ]]; then
+        dl_status_msg="✓ Download completed"
+        summary="${status_line#success:}"
+    else
+        dl_status_msg="✗ Download failed"
+        summary="${status_line#failed:}"
+    fi
+    show_result_menu "$tmpfile" "$dl_status_msg" "$summary"
+    rm -f "$tmpfile" "$fifo" "$downloaded_file" "$statusfile"
 }
 
 # Function to download a playlist
@@ -329,6 +441,7 @@ download_playlist() {
     fi
 
     tmpfile=$(mktemp)
+    statusfile=$(mktemp)
     fifo="/tmp/progress_fifo.$$"
     mkfifo "$fifo"
     tail -f "$tmpfile" > "$fifo" &
@@ -342,30 +455,38 @@ download_playlist() {
             format_selector="bestvideo[height<=${height}][ext=mp4]+bestaudio[ext=m4a]/best[height<=${height}][ext=mp4]/worst[ext=mp4]/worst"
             sponsorblock_args=$(build_sponsorblock_args)
             archive_args=$(build_archive_args)
+            local output_template
+            output_template=$(build_output_template)
             yt-dlp -U --extractor-args "youtube:player_js_variant=tv" --cookies-from-browser firefox -f "$format_selector" \
-            -o "$save_path/%(upload_date>%Y-%m-%d)s - %(title)s.%(ext)s" $sponsorblock_args $archive_args "$playlist_url" 2>&1 | stdbuf -oL tr '\r' '\n'
+            -o "$save_path/$output_template" $sponsorblock_args $archive_args "$playlist_url" 2>&1 | stdbuf -oL tr '\r' '\n'
         elif [ "$download_type" == "Audio" ]; then
             # Download audio as m4a
             sponsorblock_args=$(build_sponsorblock_args)
             archive_args=$(build_archive_args)
+            local output_template
+            output_template=$(build_output_template)
             yt-dlp -U --extractor-args "youtube:player_js_variant=tv" --cookies-from-browser firefox -x --audio-format m4a \
-            -o "$save_path/%(upload_date>%Y-%m-%d)s - %(title)s.%(ext)s" $sponsorblock_args $archive_args "$playlist_url" 2>&1 | stdbuf -oL tr '\r' '\n'
+            -o "$save_path/$output_template" $sponsorblock_args $archive_args "$playlist_url" 2>&1 | stdbuf -oL tr '\r' '\n'
         else
             # Download thumbnails
             archive_args=$(build_archive_args)
+            local output_template
+            output_template=$(build_output_template)
             yt-dlp --extractor-args "youtube:player_js_variant=tv" --write-thumbnail --skip-download --convert-thumbnails jpg \
-            -o "$save_path/%(upload_date>%Y-%m-%d)s - %(title)s.%(ext)s" $archive_args "$playlist_url" 2>&1 | stdbuf -oL tr '\r' '\n'
+            -o "$save_path/$output_template" $archive_args "$playlist_url" 2>&1 | stdbuf -oL tr '\r' '\n'
         fi
-        echo ""
         if [ "$download_type" == "Thumbnail" ]; then
-            echo "Downloaded thumbnails. Press Enter to continue..."
+            echo "success:Downloaded thumbnails."
         else
-            echo "Download completed. Press Enter to continue..."
-        fi
+            echo "success:Download completed."
+        fi > "$statusfile"
+        kill $fzf_pid 2>/dev/null
     ) > "$tmpfile" 2>&1
-    kill $tail_pid
-    wait $fzf_pid
-    rm -f "$tmpfile" "$fifo"
+    kill $tail_pid 2>/dev/null
+    wait $fzf_pid 2>/dev/null
+    local status_line; status_line=$(cat "$statusfile")
+    show_result_menu "$tmpfile" "✓ Download completed" "${status_line#success:}"
+    rm -f "$tmpfile" "$fifo" "$statusfile"
 }
 
 # Function to download all videos from a channel
@@ -394,6 +515,7 @@ download_channel_videos() {
     fi
 
     tmpfile=$(mktemp)
+    statusfile=$(mktemp)
     fifo="/tmp/progress_fifo.$$"
     mkfifo "$fifo"
     tail -f "$tmpfile" > "$fifo" &
@@ -406,29 +528,37 @@ download_channel_videos() {
             format_selector="bestvideo[height<=${height}][ext=mp4]+bestaudio[ext=m4a]/best[height<=${height}][ext=mp4]/worst[ext=mp4]/worst"
             sponsorblock_args=$(build_sponsorblock_args)
             archive_args=$(build_archive_args)
+            local output_template
+            output_template=$(build_output_template)
             yt-dlp -U --extractor-args "youtube:player_js_variant=tv" --cookies-from-browser firefox -f "$format_selector" \
-            -o "$save_path/%(upload_date>%Y-%m-%d)s - %(title)s.%(ext)s" $sponsorblock_args $archive_args "$channel_url" 2>&1 | stdbuf -oL tr '\r' '\n'
+            -o "$save_path/$output_template" $sponsorblock_args $archive_args "$channel_url" 2>&1 | stdbuf -oL tr '\r' '\n'
         elif [ "$download_type" == "Audio" ]; then
             sponsorblock_args=$(build_sponsorblock_args)
             archive_args=$(build_archive_args)
+            local output_template
+            output_template=$(build_output_template)
             yt-dlp -U --extractor-args "youtube:player_js_variant=tv" --cookies-from-browser firefox -x --audio-format m4a \
-            -o "$save_path/%(upload_date>%Y-%m-%d)s - %(title)s.%(ext)s" $sponsorblock_args $archive_args "$channel_url" 2>&1 | stdbuf -oL tr '\r' '\n'
+            -o "$save_path/$output_template" $sponsorblock_args $archive_args "$channel_url" 2>&1 | stdbuf -oL tr '\r' '\n'
         else
             archive_args=$(build_archive_args)
+            local output_template
+            output_template=$(build_output_template)
             yt-dlp --extractor-args "youtube:player_js_variant=tv" --write-thumbnail --skip-download --convert-thumbnails jpg \
-            -o "$save_path/%(upload_date>%Y-%m-%d)s - %(title)s.%(ext)s" $archive_args "$channel_url" 2>&1 | stdbuf -oL tr '\r' '\n'
+            -o "$save_path/$output_template" $archive_args "$channel_url" 2>&1 | stdbuf -oL tr '\r' '\n'
         fi
         channel_name=$(yt-dlp --extractor-args "youtube:player_js_variant=tv" --print "%(channel)s" "$channel_url" 2>/dev/null | head -1)
-        echo ""
         if [ "$download_type" == "Thumbnail" ]; then
-            echo "Downloaded thumbnails from \"${channel_name}\". Press Enter to continue..."
+            echo "success:Downloaded thumbnails from \"${channel_name}\"."
         else
-            echo "Downloaded all videos from \"${channel_name}\". Press Enter to continue..."
-        fi
+            echo "success:Downloaded all videos from \"${channel_name}\"."
+        fi > "$statusfile"
+        kill $fzf_pid 2>/dev/null
     ) > "$tmpfile" 2>&1
-    kill $tail_pid
-    wait $fzf_pid
-    rm -f "$tmpfile" "$fifo"
+    kill $tail_pid 2>/dev/null
+    wait $fzf_pid 2>/dev/null
+    local status_line; status_line=$(cat "$statusfile")
+    show_result_menu "$tmpfile" "✓ Download completed" "${status_line#success:}"
+    rm -f "$tmpfile" "$fifo" "$statusfile"
 }
 
 # Function to download channel avatar
@@ -444,6 +574,7 @@ download_avatar() {
     fi
 
     tmpfile=$(mktemp)
+    statusfile=$(mktemp)
     fifo="/tmp/progress_fifo.$$"
     mkfifo "$fifo"
     tail -f "$tmpfile" > "$fifo" &
@@ -472,16 +603,23 @@ download_avatar() {
             
             echo "Downloading avatar for ${channel_name}..."
             wget -q "$avatar_url" -O "$save_path/${clean_name}_avatar.jpg" 2>/dev/null
-            echo ""
-            echo "\"${channel_name}\" avatar downloaded. Press Enter to continue..."
+            echo "success:\"${channel_name}\" avatar downloaded." > "$statusfile"
         else
-            echo ""
-            echo "Could not find channel avatar. Press Enter to continue..."
+            echo "failed:Could not find channel avatar." > "$statusfile"
         fi
+        kill $fzf_pid 2>/dev/null
     ) > "$tmpfile" 2>&1
-    kill $tail_pid
-    wait $fzf_pid
-    rm -f "$tmpfile" "$fifo"
+    kill $tail_pid 2>/dev/null
+    wait $fzf_pid 2>/dev/null
+    local status_line; status_line=$(cat "$statusfile")
+    local av_status_msg summary
+    if [[ "$status_line" == success:* ]]; then
+        av_status_msg="✓ Download completed"; summary="${status_line#success:}"
+    else
+        av_status_msg="✗ Download failed"; summary="${status_line#failed:}"
+    fi
+    show_result_menu "$tmpfile" "$av_status_msg" "$summary"
+    rm -f "$tmpfile" "$fifo" "$statusfile"
 }
 
 # Function to download videos from a .txt file
@@ -510,6 +648,7 @@ download_from_txt() {
     fi
 
     tmpfile=$(mktemp)
+    statusfile=$(mktemp)
     fifo="/tmp/progress_fifo.$$"
     mkfifo "$fifo"
     tail -f "$tmpfile" > "$fifo" &
@@ -519,23 +658,41 @@ download_from_txt() {
     (
         sponsorblock_args=$(build_sponsorblock_args)
         archive_args=$(build_archive_args)
+        local dl_status=0
         for video_url in $(cat "$txt_file"); do
             if [ "$download_type" == "Video" ]; then
                 height=$(get_quality_height "$max_quality")
                 format_selector="bestvideo[height<=${height}][ext=mp4]+bestaudio[ext=m4a]/best[height<=${height}][ext=mp4]/worst[ext=mp4]/worst"
+                local output_template
+                output_template=$(build_output_template)
                 yt-dlp -U --extractor-args "youtube:player_js_variant=tv" --cookies-from-browser firefox -f "$format_selector" \
-                -o "$save_path/%(uploader)s - %(upload_date>%Y-%m-%d)s - %(title)s.%(ext)s" $sponsorblock_args $archive_args "$video_url" 2>&1 | stdbuf -oL tr '\r' '\n'
+                -o "$save_path/$output_template" $sponsorblock_args $archive_args "$video_url" 2>&1 | stdbuf -oL tr '\r' '\n'
             else
+                local output_template
+                output_template=$(build_output_template)
                 yt-dlp -U --extractor-args "youtube:player_js_variant=tv" --cookies-from-browser firefox -x --audio-format m4a \
-                -o "$save_path/%(upload_date>%Y-%m-%d)s - %(title)s.%(ext)s" $sponsorblock_args $archive_args "$video_url" 2>&1 | stdbuf -oL tr '\r' '\n'
+                -o "$save_path/$output_template" $sponsorblock_args $archive_args "$video_url" 2>&1 | stdbuf -oL tr '\r' '\n'
             fi
+            [ ${PIPESTATUS[0]} -ne 0 ] && dl_status=1
         done
-        echo ""
-        echo "Download completed. Press Enter to continue..."
+        if [ $dl_status -eq 0 ]; then
+            echo "success:Download completed."
+        else
+            echo "failed:Download completed with errors."
+        fi > "$statusfile"
+        kill $fzf_pid 2>/dev/null
     ) > "$tmpfile" 2>&1
-    kill $tail_pid
-    wait $fzf_pid
-    rm -f "$tmpfile" "$fifo"
+    kill $tail_pid 2>/dev/null
+    wait $fzf_pid 2>/dev/null
+    local status_line; status_line=$(cat "$statusfile")
+    local txt_status_msg summary
+    if [[ "$status_line" == success:* ]]; then
+        txt_status_msg="✓ Download completed"; summary="${status_line#success:}"
+    else
+        txt_status_msg="✗ Download failed"; summary="${status_line#failed:}"
+    fi
+    show_result_menu "$tmpfile" "$txt_status_msg" "$summary"
+    rm -f "$tmpfile" "$fifo" "$statusfile"
 }
 
 # Function to download a clipped video
@@ -574,6 +731,7 @@ download_clip() {
     fi
 
     tmpfile=$(mktemp)
+    statusfile=$(mktemp)
     fifo="/tmp/progress_fifo.$$"
     mkfifo "$fifo"
     tail -f "$tmpfile" > "$fifo" &
@@ -597,13 +755,17 @@ download_clip() {
                 esac
                 format_selector="bestvideo[height<=${height}][ext=mp4]+bestaudio[ext=m4a]/best[height<=${height}][ext=mp4]/best"
             fi
+            local output_template
+            output_template=$(build_output_template)
             yt-dlp -U --extractor-args "youtube:player_js_variant=tv" --cookies-from-browser firefox -f "$format_selector" \
-            -o "$save_path/%(upload_date>%Y-%m-%d)s - %(title)s.%(ext)s" \
+            -o "$save_path/$output_template" \
             --exec "echo %(filepath)s > $save_path/filename.txt" "$video_url" 2>&1 | stdbuf -oL tr '\r' '\n'
         else
             # Download audio as m4a
+            local output_template
+            output_template=$(build_output_template)
             yt-dlp -U --extractor-args "youtube:player_js_variant=tv" --cookies-from-browser firefox -x --audio-format m4a \
-            -o "$save_path/%(upload_date>%Y-%m-%d)s - %(title)s.%(ext)s" \
+            -o "$save_path/$output_template" \
             --exec "echo %(filepath)s > $save_path/filename.txt" "$video_url" 2>&1 | stdbuf -oL tr '\r' '\n'
         fi
         
@@ -617,17 +779,27 @@ download_clip() {
         ffmpeg -i "$full_filename" -ss "$start_time" -to "$end_time" \
             -c:v libx264 -c:a aac \
             "$save_path/$(basename "$full_filename" .mp4)_clip.mp4" 2>&1 | grep -E "time=|Duration:" | stdbuf -oL tr '\r' '\n'
+        local ffmpeg_status=${PIPESTATUS[0]}
         
-        # Delete the original downloaded video
-        rm -f "$full_filename"
-        rm -f "$save_path/filename.txt"
-        
-        echo ""
-        echo "Clipped \"${title}\". Press Enter to continue..."
+        rm -f "$full_filename" "$save_path/filename.txt"
+        if [ $ffmpeg_status -eq 0 ]; then
+            echo "success:Clipped \"${title}\"."
+        else
+            echo "failed:Clip failed."
+        fi > "$statusfile"
+        kill $fzf_pid 2>/dev/null
     ) > "$tmpfile" 2>&1
-    kill $tail_pid
-    wait $fzf_pid
-    rm -f "$tmpfile" "$fifo"
+    kill $tail_pid 2>/dev/null
+    wait $fzf_pid 2>/dev/null
+    local status_line; status_line=$(cat "$statusfile")
+    local clip_status_msg summary
+    if [[ "$status_line" == success:* ]]; then
+        clip_status_msg="✓ Download completed"; summary="${status_line#success:}"
+    else
+        clip_status_msg="✗ Download failed"; summary="${status_line#failed:}"
+    fi
+    show_result_menu "$tmpfile" "$clip_status_msg" "$summary"
+    rm -f "$tmpfile" "$fifo" "$statusfile"
 }
 
 
