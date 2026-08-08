@@ -137,6 +137,7 @@ filename_template_settings() {
         else
             FILENAME_TEMPLATE="$new_template"
             save_sponsorblock_settings
+            clear
             return
         fi
     done
