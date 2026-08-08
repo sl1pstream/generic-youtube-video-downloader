@@ -146,7 +146,7 @@ filename_template_settings() {
 # Settings menu
 settings_menu() {
     while true; do
-        choice=$(printf 'SponsorBlock Settings\n%sDownload Archive\nEdit Filename Scheme (%s)\nBack' \
+        choice=$(printf 'SponsorBlock Settings\n%sDownload History\nEdit Filename Scheme (%s)\nBack' \
             "$([ "$DOWNLOAD_ARCHIVE" = "true" ] && echo "✓ ")" \
             "${FILENAME_TEMPLATE:-\$d - \$t}" \
             | fzf --height 10 --reverse --border --prompt="Select setting: " --header="Settings")
@@ -155,7 +155,7 @@ settings_menu() {
             "SponsorBlock Settings")
                 sponsorblock_settings
                 ;;
-            *"Download Archive"*)
+            *"Download History"*)
                 DOWNLOAD_ARCHIVE=$([ "$DOWNLOAD_ARCHIVE" = "true" ] && echo "false" || echo "true")
                 save_sponsorblock_settings
                 ;;
