@@ -1,6 +1,7 @@
 ## 2026-08-08
 - Add custom file naming options - user can now choose how downloaded files are named, to some extent. If you want more options here, please open an issue
 - Clean up the download completion (or failed) screen, with the option to continue (default), view the output log (including the option to save after viewing), or save the output log. If simply continuing, no extra scrolling/clicks/etc are required compared to the previous iteration of this
+  - Added the "Select an option:" text to these screens
 - Fix a bug due to hardcoding - script will now properly report success/failure when using the Custom option
 ## 2026-08-05
 - Add an option to keep track of downloaded videos in Settings, to avoid repeating downloads when downloading from the same URL (ie. playlist/channel). Not necessary for Avatar or Clip functions. Relevant file paths are at the top of the script
