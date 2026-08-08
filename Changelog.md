@@ -4,6 +4,7 @@
   - Added the "Select an option:" text to these screens
   - Fixed introduced visual bug - clear leftover text from previous screen before showing the Settings menu again
 - Fix a bug due to hardcoding - script will now properly report success/failure when using the Custom option
+- Clarity - in Settings, rename Download Archive to Download history
 ## 2026-08-05
 - Add an option to keep track of downloaded videos in Settings, to avoid repeating downloads when downloading from the same URL (ie. playlist/channel). Not necessary for Avatar or Clip functions. Relevant file paths are at the top of the script
 ---
