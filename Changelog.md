@@ -1,3 +1,6 @@
+## 2026-09-03
+- Clip is working again
+---
 ## 2026-08-08
 - Add custom file naming options - user can now choose how downloaded files are named, to some extent. If you want more options here, please open an issue
 - Clean up the download completion (or failed) screen, with the option to continue (default), view the output log (including the option to save after viewing), or save the output log. If simply continuing, no extra scrolling/clicks/etc are required compared to the previous iteration of this
