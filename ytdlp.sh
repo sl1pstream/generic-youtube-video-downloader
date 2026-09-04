@@ -740,6 +740,9 @@ download_clip() {
     fzf --height 40 --reverse --border --prompt="Downloading... " --header="Progress" --tac --no-sort < "$fifo" > /dev/null &
     fzf_pid=$!
     (
+        downloaded_file=$(mktemp)
+        local output_template
+        output_template=$(build_output_template)
         if [ "$download_type" == "Video" ]; then
             # Download video with selected quality
             if [ "$quality" == "Best available" ]; then
@@ -756,21 +759,15 @@ download_clip() {
                 esac
                 format_selector="bestvideo[height<=${height}][ext=mp4]+bestaudio[ext=m4a]/best[height<=${height}][ext=mp4]/best"
             fi
-            local output_template
-            output_template=$(build_output_template)
             yt-dlp -U --extractor-args "youtube:player_js_variant=tv" --cookies-from-browser firefox -f "$format_selector" \
-            -o "$save_path/$output_template" \
-            --exec "echo %(filepath)s > $save_path/filename.txt" "$video_url" 2>&1 | stdbuf -oL tr '\r' '\n'
+            -o "$save_path/$output_template" --print-to-file after_move:filepath "$downloaded_file" "$video_url" 2>&1 | stdbuf -oL tr '\r' '\n'
         else
             # Download audio as m4a
-            local output_template
-            output_template=$(build_output_template)
             yt-dlp -U --extractor-args "youtube:player_js_variant=tv" --cookies-from-browser firefox -x --audio-format m4a \
-            -o "$save_path/$output_template" \
-            --exec "echo %(filepath)s > $save_path/filename.txt" "$video_url" 2>&1 | stdbuf -oL tr '\r' '\n'
+            -o "$save_path/$output_template" --print-to-file after_move:filepath "$downloaded_file" "$video_url" 2>&1 | stdbuf -oL tr '\r' '\n'
         fi
         
-        full_filename=$(cat "$save_path/filename.txt")
+        full_filename=$(cat "$downloaded_file")
         title=$(basename "$full_filename" | sed 's/^[0-9]\{4\}-[0-9]\{2\}-[0-9]\{2\} - //' | sed 's/\.[^.]*$//')
         
         echo ""
@@ -782,7 +779,7 @@ download_clip() {
             "$save_path/$(basename "$full_filename" .mp4)_clip.mp4" 2>&1 | grep -E "time=|Duration:" | stdbuf -oL tr '\r' '\n'
         local ffmpeg_status=${PIPESTATUS[0]}
         
-        rm -f "$full_filename" "$save_path/filename.txt"
+        rm -f "$full_filename"
         if [ $ffmpeg_status -eq 0 ]; then
             echo "success:Clipped \"${title}\"."
         else
@@ -800,7 +797,7 @@ download_clip() {
         clip_status_msg="✗ Download failed"; summary="${status_line#failed:}"
     fi
     show_result_menu "$tmpfile" "$clip_status_msg" "$summary"
-    rm -f "$tmpfile" "$fifo" "$statusfile"
+    rm -f "$tmpfile" "$fifo" "$downloaded_file" "$statusfile"
 }
 
 
