@@ -91,6 +91,19 @@ Install `boxbuddy` and set up an Arch Linux environment, and install the prerequ
   - For any maximum quality, if a video is not available in that quality, the video with the next lowest quality will be chosen
   - If the quality selected is lower than the minimum quality available for a video, the lowest quality will be downloaded
 
+### About the base functions
+- **Single video** - downloads a single YouTube video from URL
+- **Playlist** - downloads all videos from a playlist URL. If using the same playlist URL multiple times, it will skip existing videos and only download newly added videos)
+- **Channel** - downloads all videos from a channel URL. If using the same channel URL multiple times, it will only download newly published videos
+- **Avatar** - downloads a channel's profile picture in max resolution
+- **Custom** - downloads multiple URLs from a user-selected .txt file (for example, multiple videos in one run from different playlists/channels). One URL per line in the .txt file
+- **Clip** - downloads a user-defined segment of a video
+
+### About the settings
+- **SponsorBlock Settings** - remove sponsored/intrusive segments from videos. Does not affect Avatar (duh) or Clip functions
+- **Download History** - option to keep track of existing downloaded videos. If you are passing the same playlist/channel URLs to keep track of updates, keep this enabled
+- **Embed Thumbnail** - show the thumbnail you see in the videos on YouTube for local video files
+- **Edit Filename Scheme** - modify the video naming template for saved videos. Useful if you're migrating to using this tool and don't like the default template, or want to continue using what you had before
 ---
 The script itself is fairly intuitive to use, and most options throughout the script have basic descriptions that tells users what each one does. If you are knowledgeable in coding (specifically bash), you are free to read through the code to see how each part works.
 
