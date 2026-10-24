@@ -55,9 +55,9 @@ begin_download_archive() {
     if [ "$DOWNLOAD_ARCHIVE" = "true" ]; then
         mkdir -p "$(dirname "$ARCHIVE_FILE")"
         [ -f "$ARCHIVE_FILE" ] && cp "$ARCHIVE_FILE" "$DOWNLOAD_ARCHIVE_WORK" || : > "$DOWNLOAD_ARCHIVE_WORK"
-        DOWNLOAD_ARCHIVE_TRACK_ARGS=(--download-archive "$DOWNLOAD_ARCHIVE_WORK" --print-to-file "after_move:$DOWNLOAD_ARCHIVE_SUCCESS" "%(extractor_key)s %(id)s")
+        DOWNLOAD_ARCHIVE_TRACK_ARGS=(--download-archive "$DOWNLOAD_ARCHIVE_WORK" --print-to-file "after_move:%(extractor_key)s %(id)s" "$DOWNLOAD_ARCHIVE_SUCCESS")
     else
-        DOWNLOAD_ARCHIVE_TRACK_ARGS=(--print-to-file "after_move:$DOWNLOAD_ARCHIVE_SUCCESS" "%(extractor_key)s %(id)s")
+        DOWNLOAD_ARCHIVE_TRACK_ARGS=(--print-to-file "after_move:%(extractor_key)s %(id)s" "$DOWNLOAD_ARCHIVE_SUCCESS")
     fi
 }
 
@@ -66,6 +66,9 @@ commit_download_archive() {
         touch "$ARCHIVE_FILE"
         while IFS= read -r archive_entry; do
             [ -n "$archive_entry" ] || continue
+            extractor_key=${archive_entry%% *}
+            video_id=${archive_entry#* }
+            archive_entry="${extractor_key,,} $video_id"
             grep -Fqx -- "$archive_entry" "$ARCHIVE_FILE" || printf '%s\n' "$archive_entry" >> "$ARCHIVE_FILE"
         done < "$DOWNLOAD_ARCHIVE_SUCCESS"
     fi
