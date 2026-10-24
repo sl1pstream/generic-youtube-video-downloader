@@ -1,3 +1,5 @@
+## 2026-10-24
+- Fix: Download History no longer saves video IDs if the download failed (applicable for Single Video, Playlist, Channel, and Custom. Video, and Video/Audio download types) 
 ## 2026-09-03
 - Clip is working again
 ---
