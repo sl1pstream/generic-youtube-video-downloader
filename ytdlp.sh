@@ -74,6 +74,18 @@ commit_download_archive() {
     fi
 }
 
+# yt-dlp reports a non-zero status for this update error even when the
+# requested download later succeeds. Ignore only that specific update error.
+yt_dlp_status_is_success() {
+    local status="$1" logfile="$2"
+    [ "$status" -eq 0 ] && return 0
+    grep -Fqx 'ERROR: You installed yt-dlp from a manual build or with a package manager; Use that to update' "$logfile" || return 1
+    if grep '^ERROR:' "$logfile" | grep -Fvx 'ERROR: You installed yt-dlp from a manual build or with a package manager; Use that to update' | grep -q .; then
+        return 1
+    fi
+    return 0
+}
+
 # Build SponsorBlock arguments
 build_sponsorblock_args() {
     local args=""
@@ -419,8 +431,21 @@ download_single_video() {
             -o "$save_path/$output_template" --print-to-file after_move:filepath "$downloaded_file" $archive_args "$video_url" 2>&1 | stdbuf -oL tr '\r' '\n'
             download_status=${PIPESTATUS[0]}
         fi
-        if [ "$download_status" -eq 0 ] && [ -s "$downloaded_file" ]; then
-            [ "$download_type" != "Thumbnail" ] && commit_download_archive
+        full_filename=$(tail -n 1 "$downloaded_file" 2>/dev/null)
+        if [ "$download_type" == "Thumbnail" ]; then
+            download_succeeded=false
+            if [ "$download_status" -eq 0 ] && [ -s "$downloaded_file" ] && [ -s "$full_filename" ]; then
+                download_succeeded=true
+            fi
+        elif yt_dlp_status_is_success "$download_status" "$tmpfile" \
+            && [ -s "$downloaded_file" ] && [ -s "$full_filename" ] \
+            && { [ "$DOWNLOAD_ARCHIVE" != "true" ] || [ -s "$DOWNLOAD_ARCHIVE_SUCCESS" ]; }; then
+            commit_download_archive
+            download_succeeded=true
+        else
+            download_succeeded=false
+        fi
+        if [ "$download_succeeded" = true ]; then
             full_filename=$(tail -n 1 "$downloaded_file")
             title=$(basename "$full_filename" | sed 's/^[0-9]\{4\}-[0-9]\{2\}-[0-9]\{2\} - //' | sed 's/\.[^.]*$//')
             if [ "$download_type" == "Thumbnail" ]; then
@@ -517,7 +542,7 @@ download_playlist() {
         else
             commit_download_archive
         fi
-        if [ "$download_status" -eq 0 ]; then
+        if yt_dlp_status_is_success "$download_status" "$tmpfile"; then
             if [ "$download_type" == "Thumbnail" ]; then
                 echo "success:Downloaded thumbnails."
             else
@@ -606,7 +631,7 @@ download_channel_videos() {
         else
             commit_download_archive
         fi
-        if [ "$download_status" -eq 0 ]; then
+        if yt_dlp_status_is_success "$download_status" "$tmpfile"; then
             if [ "$download_type" == "Thumbnail" ]; then
                 echo "success:Downloaded thumbnails from \"${channel_name}\"."
             else
@@ -742,7 +767,8 @@ download_from_txt() {
                 yt-dlp -U --extractor-args "youtube:player_js_variant=tv" --cookies-from-browser firefox -x --audio-format m4a \
                 -o "$save_path/$output_template" $sponsorblock_args "${DOWNLOAD_ARCHIVE_TRACK_ARGS[@]}" "$video_url" 2>&1 | stdbuf -oL tr '\r' '\n'
             fi
-            [ ${PIPESTATUS[0]} -ne 0 ] && dl_status=1
+            command_status=${PIPESTATUS[0]}
+            yt_dlp_status_is_success "$command_status" "$tmpfile" || dl_status=1
         done
         commit_download_archive
         if [ $dl_status -eq 0 ]; then
