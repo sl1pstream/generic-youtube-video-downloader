@@ -1,3 +1,5 @@
+## 2026-10-28
+- Fix download status incorrectly reporting a failed download due to "ERROR: You installed yt-dlp from a manual build or with a package manager; Use that to update", which is irrelevant to the actual success/failure of a download
 ## 2026-10-24
 - Fix: Download History no longer saves video IDs if the download failed (applicable for Single Video, Playlist, Channel, and Custom. Video, and Video/Audio download types) 
 ## 2026-09-03
